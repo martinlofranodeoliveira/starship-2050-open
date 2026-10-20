@@ -1,8 +1,8 @@
 // Dependency-free static development server; binds to loopback only.
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { lstat, readFile, realpath } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
-import { dirname, extname, resolve, sep } from 'node:path';
+import { dirname, extname, join, resolve, sep } from 'node:path';
 const root = dirname(fileURLToPath(import.meta.url));
 const types = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8', '.json': 'application/json; charset=utf-8' };
 const server = createServer(async (request, response) => {
@@ -15,6 +15,20 @@ const server = createServer(async (request, response) => {
     const relative = file.slice(root.length + 1);
     if (!file.startsWith(root + sep) || relative.split(sep).some(part => part.startsWith('.')) ||
         !(relative === 'index.html' || relative.startsWith('js' + sep) || relative.startsWith('css' + sep))) {
+      response.writeHead(404); response.end(); return;
+    }
+    const parts = relative.split(sep);
+    for (let i = 1; i <= parts.length; i++) {
+      const candidate = join(root, ...parts.slice(0, i));
+      const stats = await lstat(candidate).catch(() => null);
+      if (!stats) break;
+      if (stats.isSymbolicLink()) {
+        response.writeHead(404); response.end(); return;
+      }
+      if (!stats.isDirectory() && i < parts.length) break;
+    }
+    const resolved = await realpath(file).catch(() => null);
+    if (resolved && resolved !== root && !resolved.startsWith(root + sep)) {
       response.writeHead(404); response.end(); return;
     }
     const data = await readFile(file);
