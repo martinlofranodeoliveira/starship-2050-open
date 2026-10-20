@@ -1,0 +1,12 @@
+{
+  "name": "starship-2050-open",
+  "version": "0.1.0",
+  "private": true,
+  "license": "MIT",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "check": "node --check server.js && node --check js/game.js",
+    "test": "node --test test/*.test.js"
+  }
+}

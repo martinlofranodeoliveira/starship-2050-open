@@ -1,0 +1,69 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#050510">
+  <title>STARSHIP 2050</title>
+  <link rel="stylesheet" href="css/style.css">
+  <script>
+    window.PokiBridge = {
+      ready: false,
+      sdk: null,
+      init: function () {
+        if (window.PokiSDK && !this.ready) {
+          this.sdk = window.PokiSDK;
+          return window.PokiSDK.init().then(() => {
+            this.ready = true;
+          }).catch(() => {
+            this.ready = false;
+          });
+        }
+        return Promise.resolve();
+      },
+      loadingFinished: function () {
+        if (this.sdk && this.sdk.gameLoadingFinished) this.sdk.gameLoadingFinished();
+      },
+      gameplayStart: function () {
+        if (this.sdk && this.sdk.gameplayStart) this.sdk.gameplayStart();
+      },
+      gameplayStop: function () {
+        if (this.sdk && this.sdk.gameplayStop) this.sdk.gameplayStop();
+      },
+      commercialBreak: function (resume) {
+        const onStart = window.__STARSHIP_AD_START__ || function () {};
+        const onEnd = window.__STARSHIP_AD_END__ || function () {};
+        const done = function () {
+          onEnd();
+          if (resume) resume();
+        };
+        if (this.sdk && this.sdk.commercialBreak) {
+          this.gameplayStop();
+          this.sdk.commercialBreak(onStart).then(done).catch(done);
+        } else {
+          done();
+        }
+      },
+      happyTime: function (value) {
+        if (this.sdk && this.sdk.happyTime) this.sdk.happyTime(value);
+      }
+    };
+  </script>
+</head>
+<body>
+  <main id="wrap" aria-label="STARSHIP 2050 game canvas">
+    <canvas id="game" width="1280" height="720"></canvas>
+    <div id="name-editor" class="name-editor" hidden>
+      <form id="name-editor-form" class="name-editor__panel" autocomplete="off">
+        <label for="name-editor-input" class="name-editor__label">Nome do piloto</label>
+        <div class="name-editor__row">
+          <input id="name-editor-input" class="name-editor__input" name="pilot" type="text" inputmode="text" maxlength="12" spellcheck="false" autocomplete="off">
+          <button class="name-editor__button" type="submit">OK</button>
+        </div>
+        <button id="name-editor-cancel" class="name-editor__cancel" type="button">Cancelar</button>
+      </form>
+    </div>
+  </main>
+  <script src="js/game.js"></script>
+</body>
+</html>

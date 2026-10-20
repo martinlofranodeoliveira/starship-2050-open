@@ -1,0 +1,164 @@
+html,
+body {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: #050510;
+  color: #ffffff;
+  font-family: "Segoe UI", Arial, sans-serif;
+  touch-action: none;
+}
+
+body {
+  display: grid;
+  place-items: center;
+}
+
+#wrap {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at 50% 50%, rgba(0, 240, 255, 0.08), transparent 34%),
+    #050510;
+}
+
+#game {
+  display: block;
+  width: min(100vw, 177.777777vh);
+  height: min(56.25vw, 100vh);
+  image-rendering: auto;
+  outline: none;
+  box-shadow: 0 0 54px rgba(0, 0, 0, 0.82);
+  background: #050510;
+}
+
+.name-editor {
+  position: fixed;
+  z-index: 10;
+  color: #fff;
+  pointer-events: auto;
+  filter: drop-shadow(0 0 22px rgba(0, 240, 255, 0.35));
+}
+
+.name-editor[hidden] {
+  display: none;
+}
+
+.name-editor__panel {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 12px;
+  border: 2px solid #00f0ff;
+  background:
+    linear-gradient(180deg, rgba(10, 20, 42, 0.98), rgba(5, 5, 18, 0.98)),
+    #050510;
+  box-shadow:
+    inset 0 0 0 1px rgba(255, 255, 255, 0.07),
+    0 0 0 1px rgba(0, 0, 0, 0.7),
+    0 0 30px rgba(0, 240, 255, 0.24);
+  clip-path: polygon(14px 0, 100% 0, 100% calc(100% - 14px), calc(100% - 14px) 100%, 0 100%, 0 14px);
+}
+
+.name-editor__label {
+  display: block;
+  margin: 0 0 8px;
+  color: #8fa8c8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.name-editor__row {
+  display: grid;
+  grid-template-columns: 1fr 72px;
+  gap: 8px;
+}
+
+.name-editor__input {
+  min-width: 0;
+  height: 44px;
+  box-sizing: border-box;
+  border: 1px solid rgba(0, 240, 255, 0.7);
+  border-radius: 0;
+  background: rgba(0, 240, 255, 0.08);
+  color: #fff;
+  font: 900 20px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0;
+  outline: none;
+  padding: 0 12px;
+  text-align: center;
+  text-transform: uppercase;
+  box-shadow: inset 0 0 18px rgba(0, 240, 255, 0.12);
+}
+
+.name-editor__input:focus {
+  border-color: #ffd300;
+  box-shadow:
+    inset 0 0 18px rgba(0, 240, 255, 0.14),
+    0 0 18px rgba(255, 211, 0, 0.24);
+}
+
+.name-editor__button,
+.name-editor__cancel {
+  border: 1px solid #ffd300;
+  border-radius: 0;
+  background: rgba(255, 211, 0, 0.16);
+  color: #ffd300;
+  cursor: pointer;
+  font: 900 14px "Segoe UI", Arial, sans-serif;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.name-editor__cancel {
+  width: 100%;
+  height: 28px;
+  margin-top: 8px;
+  border-color: rgba(143, 168, 200, 0.65);
+  background: rgba(143, 168, 200, 0.08);
+  color: #8fa8c8;
+  font-size: 11px;
+}
+
+@media (orientation: portrait) and (max-width: 760px) {
+  .name-editor__panel {
+    padding: 14px;
+  }
+
+  .name-editor__input {
+    height: 50px;
+    font-size: 22px;
+  }
+
+  .name-editor__button {
+    font-size: 15px;
+  }
+}
+
+@media (max-aspect-ratio: 16 / 9) {
+  #game {
+    width: 100vw;
+    height: 56.25vw;
+  }
+}
+
+@media (min-aspect-ratio: 16 / 9) {
+  #game {
+    width: 177.777777vh;
+    height: 100vh;
+  }
+}
+
+@media (orientation: portrait) and (max-width: 760px) and (max-aspect-ratio: 20 / 29) {
+  #game {
+    width: 100vw;
+    height: 100vh;
+    height: 100dvh;
+  }
+}
