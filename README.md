@@ -141,3 +141,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_browser_save_gate.test.js`.
+
+
+<!-- community-core:local-phase-gate -->
+### Deterministic local phase gate for open edition checks
+
+Mirrors the open edition rule that validation covers JavaScript syntax and local HTTP serving with a manual browser smoke check and no cloud. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded phase-plus-scope descriptors and deny out-of-scope variants without filesystem, network, bind or clock state, keeping check validation separate from route, save and procedural gates.
+
+Reusable deterministic JSON core: `js/community/local_phase_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of phase and scope. Returns an object literal with decision allow or deny, reason code string, plan object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null plan; iterate Object.entries of payload and if any key is not phase or scope return deny unknown-field with null plan; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null plan; collect entries into a Map; phase must be a string exactly check or test or start via Map lookup else if missing or non-string return deny bad-phase with null plan else return deny unknown-phase with null plan; scope must be a string exactly syntax or serve or smoke via Map lookup else if missing or non-string return deny bad-scope with null plan else return deny unknown-scope with null plan; enforce allowed pairing where check and test require syntax or serve and start requires smoke else return deny mismatch-scope with null plan; on success return allow ok-check with plan object literal holding phase and scope. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, clock, or Date; callers must still enforce JavaScript syntax validation, local HTTP serving on 127.0.0.1 with per-request lstat plus realpath containment, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "phase": "check",
+    "scope": "syntax"
+  },
+  "output": {
+    "decision": "allow",
+    "plan": {
+      "phase": "check",
+      "scope": "syntax"
+    },
+    "reason": "ok-check"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "phase": "start",
+    "scope": "smoke"
+  },
+  "output": {
+    "decision": "allow",
+    "plan": {
+      "phase": "start",
+      "scope": "smoke"
+    },
+    "reason": "ok-check"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "phase": "start",
+    "scope": "syntax"
+  },
+  "output": {
+    "decision": "deny",
+    "plan": null,
+    "reason": "mismatch-scope"
+  }
+}
+```
+
+Public regression tests: `test/community_local_phase_gate.test.js`.
