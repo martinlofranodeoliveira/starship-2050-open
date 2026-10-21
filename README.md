@@ -383,3 +383,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_static_containment_gate.test.js`.
+
+
+<!-- community-core:zero-install-gate -->
+### Deterministic zero-install gate for open edition runs
+
+Mirrors the open edition rule that no package installation or credentials are needed and runs use local Node.js with npm run check, test and start. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded dependency-plus-credential descriptors and deny install or secret variants without filesystem, network, bind or clock state, keeping setup validation separate from route, save, phase, procedural, bind and containment gates.
+
+Reusable deterministic JSON core: `js/community/zero_install_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of dependency and credential. Returns an object literal with decision allow or deny, reason code string, setup object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null setup; iterate Object.entries of payload and if any key is not dependency or credential return deny unknown-field with null setup; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null setup; collect entries into a Map; dependency must be a string exactly none via Map lookup else if missing or non-string return deny bad-dependency with null setup else return deny unknown-dependency with null setup; credential must be a string exactly none via Map lookup else if missing or non-string return deny bad-credential with null setup else return deny unknown-credential with null setup; on success return allow ok-zero with setup object literal holding dependency and credential. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce Node.js 22 or later with no package installation or credentials, local serving on 127.0.0.1 port 8080 with per-request lstat plus realpath containment, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "credential": "none",
+    "dependency": "none"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-zero",
+    "setup": {
+      "credential": "none",
+      "dependency": "none"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "credential": "none",
+    "dependency": "install"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-dependency",
+    "setup": null
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "credential": "token",
+    "dependency": "none"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-credential",
+    "setup": null
+  }
+}
+```
+
+Public regression tests: `test/community_zero_install_gate.test.js`.
