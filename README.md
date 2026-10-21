@@ -1168,3 +1168,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_synthetic_fixture_gate.test.js`.
+
+
+<!-- community-core:excluded-media-rights-gate -->
+### Deterministic excluded-media rights gate for open edition assets
+
+Mirrors the open edition rule that original images, 3D files, recorded voices and marketing material are excluded because redistribution rights were not established while rendering uses procedural canvas fallback and browser-generated sound. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded media-plus-rights descriptors and deny out-of-scope variants without filesystem, network, bind or clock state, keeping media-rights validation separate from route, save, phase, procedural, containment, status, bind, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/excluded_media_rights_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of media and rights. Returns an object literal with decision allow or deny, reason code string, ruling object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null ruling; iterate Object.entries of payload and if any key is not media or rights return deny unknown-field with null ruling; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null ruling; collect entries into a Map; media must be a string exactly image or model-3d or voice or marketing via Map lookup else if missing or non-string return deny bad-media with null ruling else return deny unknown-media with null ruling; rights must be a string exactly unestablished via Map lookup else if missing or non-string return deny bad-rights with null ruling else return deny unknown-rights with null ruling; on success return allow ok-excluded with ruling object literal holding media and rights. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock and never uses Date; callers must still enforce exclusion of original images, 3D files, recorded voices and marketing material with procedural canvas fallback and browser-generated sound, browser-local saves, local serving on 127.0.0.1, per-request lstat plus realpath containment, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "media": "image",
+    "rights": "unestablished"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-excluded",
+    "ruling": {
+      "media": "image",
+      "rights": "unestablished"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "media": "marketing",
+    "rights": "unestablished"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-excluded",
+    "ruling": {
+      "media": "marketing",
+      "rights": "unestablished"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "media": "voice",
+    "rights": "granted"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-rights",
+    "ruling": null
+  }
+}
+```
+
+Public regression tests: `test/community_excluded_media_rights_gate.test.js`.
