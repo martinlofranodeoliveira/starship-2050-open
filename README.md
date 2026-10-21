@@ -926,3 +926,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_serve_denial_case_gate.test.js`.
+
+
+<!-- community-core:smoke-coverage-limit-gate -->
+### Deterministic smoke coverage limit gate for open edition validation
+
+Mirrors the open edition rule that validation is a manual browser smoke check with the procedural renderer, not exhaustive gameplay coverage. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded assurance-plus-extent descriptors and deny exhaustive or out-of-scope claims without filesystem, network, bind or clock state, keeping coverage-limit validation separate from route, save, phase, procedural, port, exclusion and denial-case gates.
+
+Reusable deterministic JSON core: `js/community/smoke_coverage_limit_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of assurance and extent. Returns an object literal with decision allow or deny, reason code string, bound object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null bound; iterate Object.entries of payload and if any key is not assurance or extent return deny unknown-field with null bound; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null bound; collect entries into a Map; assurance must be a string exactly smoke via Map lookup else if missing or non-string return deny bad-assurance with null bound else return deny unknown-assurance with null bound; extent must be a string exactly limited via Map lookup else if missing or non-string return deny bad-extent with null bound else if extent is exhaustive or full or complete via Map lookup return deny overclaim-extent with null bound else return deny unknown-extent with null bound; on success return allow ok-smoke with bound object literal holding assurance and extent. It preserves input, uses only object literals, arrays with push, and Maps, never reads filesystem, network, bind, storage, or clock and never uses Date; callers must still enforce JavaScript syntax validation, local HTTP serving with denied private paths and unsupported writes, manual browser opening with procedural canvas fallback and browser-generated sound, browser-local gameplay and scores, and exclusion of cloud leaderboard, SDK download and production deployment while treating validation as smoke-only not exhaustive.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "assurance": "smoke",
+    "extent": "limited"
+  },
+  "output": {
+    "bound": {
+      "assurance": "smoke",
+      "extent": "limited"
+    },
+    "decision": "allow",
+    "reason": "ok-smoke"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "assurance": "smoke",
+    "extent": "exhaustive"
+  },
+  "output": {
+    "bound": null,
+    "decision": "deny",
+    "reason": "overclaim-extent"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "assurance": "manual",
+    "extent": "limited"
+  },
+  "output": {
+    "bound": null,
+    "decision": "deny",
+    "reason": "unknown-assurance"
+  }
+}
+```
+
+Public regression tests: `test/community_smoke_coverage_limit_gate.test.js`.
