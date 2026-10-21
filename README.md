@@ -864,3 +864,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_excluded_offering_gate.test.js`.
+
+
+<!-- community-core:serve-denial-case-gate -->
+### Deterministic serve denial case gate for open edition validation
+
+Mirrors the open edition validation rule that local HTTP serving coverage includes denied private paths and unsupported writes plus dotfile, traversal, symlink and outside-root denials with smoke-checked procedural serving. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded validation-plus-case descriptors and deny out-of-scope variants without filesystem, network, bind or clock state, keeping denial-case acknowledgement separate from route, save, phase, procedural, bind, containment, zero-install and provenance gates.
+
+Reusable deterministic JSON core: `js/community/serve_denial_case_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of validation and case. Returns an object literal with decision allow or deny, reason code string, coverage object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null coverage; iterate Object.entries of payload and if any key is not validation or case return deny unknown-field with null coverage; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null coverage; collect entries into a Map; validation must be a string exactly serve via Map lookup else if missing or non-string return deny bad-validation with null coverage else return deny unknown-validation with null coverage; case must be a string via Map lookup among private-path, write-method, dotfile, traversal, symlink and outside-root else if missing or non-string return deny bad-case with null coverage else return deny unknown-case with null coverage; on success return allow ok-serve with coverage object literal holding validation and case. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce per-request lstat plus realpath containment with 404 without bytes, 405 for non-GET/HEAD, 404 for symlink traversal dotfile and private targets, bind 127.0.0.1, procedural canvas fallback and browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "case": "private-path",
+    "validation": "serve"
+  },
+  "output": {
+    "coverage": {
+      "case": "private-path",
+      "validation": "serve"
+    },
+    "decision": "allow",
+    "reason": "ok-serve"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "case": "write-method",
+    "validation": "serve"
+  },
+  "output": {
+    "coverage": {
+      "case": "write-method",
+      "validation": "serve"
+    },
+    "decision": "allow",
+    "reason": "ok-serve"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "case": "private-path",
+    "validation": "syntax"
+  },
+  "output": {
+    "coverage": null,
+    "decision": "deny",
+    "reason": "unknown-validation"
+  }
+}
+```
+
+Public regression tests: `test/community_serve_denial_case_gate.test.js`.
