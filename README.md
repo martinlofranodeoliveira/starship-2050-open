@@ -1106,3 +1106,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_open_content_boundary_gate.test.js`.
+
+
+<!-- community-core:synthetic-fixture-gate -->
+### Deterministic synthetic fixture gate for loopback symlink tests
+
+Mirrors the open edition limit that symlink and traversal checks use per-request lstat plus realpath containment with synthetic loopback fixtures and no sandbox or TOCTOU guarantees. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded fixture-plus-network descriptors and deny out-of-scope variants without filesystem, network, bind or clock state, keeping fixture validation separate from route, save, phase, procedural, containment, status, bind and exclusion gates.
+
+Reusable deterministic JSON core: `js/community/synthetic_fixture_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of fixture and network. Returns an object literal with decision allow or deny, reason code string, setup object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null setup; iterate Object.entries of payload and if any key is not fixture or network return deny unknown-field with null setup; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null setup; collect entries into a Map; fixture must be a string exactly symlink-loop or traversal-probe or dotfile-probe via Map lookup else if missing or non-string return deny bad-fixture with null setup else return deny unknown-fixture with null setup; network must be a string exactly loopback via Map lookup else if missing or non-string return deny bad-network with null setup else return deny unknown-network with null setup; on success return allow ok-synthetic with setup object literal holding fixture and network. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock and never uses Date; callers must still enforce per-request lstat plus realpath containment with 404 without bytes, 405 for non-GET/HEAD, bind 127.0.0.1, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "fixture": "symlink-loop",
+    "network": "loopback"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-synthetic",
+    "setup": {
+      "fixture": "symlink-loop",
+      "network": "loopback"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "fixture": "traversal-probe",
+    "network": "loopback"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-synthetic",
+    "setup": {
+      "fixture": "traversal-probe",
+      "network": "loopback"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "fixture": "symlink-loop",
+    "network": "cloud"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-network",
+    "setup": null
+  }
+}
+```
+
+Public regression tests: `test/community_synthetic_fixture_gate.test.js`.
