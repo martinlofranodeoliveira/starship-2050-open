@@ -203,3 +203,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_local_phase_gate.test.js`.
+
+
+<!-- community-core:procedural-asset-gate -->
+### Deterministic procedural asset gate for open edition rendering
+
+Mirrors the open edition rule that rendering uses the procedural canvas fallback and browser-generated sound while original images, 3D files, recorded voices and marketing material are excluded. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded asset-plus-source descriptors and deny excluded or out-of-scope variants without filesystem, network, bind or clock state, keeping asset validation separate from route, save and phase gates.
+
+Reusable deterministic JSON core: `js/community/procedural_asset_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of asset and source. Returns an object literal with decision allow or deny, reason code string, render object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null render; iterate Object.entries of payload and if any key is not asset or source return deny unknown-field with null render; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null render; collect entries into a Map; asset must be a string exactly canvas or sound via Map lookup else if missing or non-string return deny bad-asset with null render else return deny unknown-asset with null render; source must be a string exactly procedural or generated via Map lookup else if missing or non-string return deny bad-source with null render else return deny unknown-source with null render; enforce allowed pairing where canvas requires procedural and sound requires generated else return deny mismatch-source with null render; on success return allow ok-procedural with render object literal holding asset and source. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce procedural canvas fallback with browser-generated sound, local serving on 127.0.0.1, browser-local saves, and exclusion of original images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "asset": "canvas",
+    "source": "procedural"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-procedural",
+    "render": {
+      "asset": "canvas",
+      "source": "procedural"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "asset": "sound",
+    "source": "generated"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-procedural",
+    "render": {
+      "asset": "sound",
+      "source": "generated"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "asset": "image",
+    "source": "procedural"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-asset",
+    "render": null
+  }
+}
+```
+
+Public regression tests: `test/community_procedural_asset_gate.test.js`.
