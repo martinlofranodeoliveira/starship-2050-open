@@ -619,3 +619,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_local_status_code_gate.test.js`.
+
+
+<!-- community-core:local-body-policy-gate -->
+### Deterministic local body policy gate for open edition responses
+
+Mirrors the open edition rule that static serving returns 404 without sending target bytes for symlink, escape, dotfile, traversal, private and unknown targets and 405 for non-GET/HEAD while 200 serves bytes. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded status-plus-body descriptors and deny mismatched or out-of-scope variants without filesystem, network, bind or clock state, keeping body validation separate from route, save, phase, procedural, bind, containment, zero-install and provenance gates.
+
+Reusable deterministic JSON core: `js/community/local_body_policy_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of status and body. Returns an object literal with decision allow or deny, reason code string, policy object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null policy; iterate Object.entries of payload and if any key is not status or body return deny unknown-field with null policy; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null policy; collect entries into a Map; status must be a number finite safe integer exactly 200 or 404 or 405 via Map lookup else if missing or non-number or non-integer or outside safe range return deny bad-status with null policy else return deny unknown-status with null policy; body must be a string exactly empty or bytes via Map lookup else if missing or non-string return deny bad-body with null policy else return deny unknown-body with null policy; enforce pairing where 200 requires bytes and 404 requires empty and 405 requires empty else return deny mismatch-body with null policy; on success return allow ok-body with policy object literal holding status and body. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce per-request lstat plus realpath containment with 404 without bytes, 405 for non-GET/HEAD, 404 for symlink traversal dotfile and private targets, bind 127.0.0.1, procedural canvas fallback and browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "body": "bytes",
+    "status": 200
+  },
+  "output": {
+    "decision": "allow",
+    "policy": {
+      "body": "bytes",
+      "status": 200
+    },
+    "reason": "ok-body"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "body": "empty",
+    "status": 404
+  },
+  "output": {
+    "decision": "allow",
+    "policy": {
+      "body": "empty",
+      "status": 404
+    },
+    "reason": "ok-body"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "body": "bytes",
+    "status": 404
+  },
+  "output": {
+    "decision": "deny",
+    "policy": null,
+    "reason": "mismatch-body"
+  }
+}
+```
+
+Public regression tests: `test/community_local_body_policy_gate.test.js`.
