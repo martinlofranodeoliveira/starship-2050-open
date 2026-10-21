@@ -802,3 +802,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_local_port_gate.test.js`.
+
+
+<!-- community-core:excluded-offering-gate -->
+### Deterministic excluded offering gate for open edition scope
+
+Mirrors the open edition rule that gameplay stays local with no cloud leaderboard, SDK download or production deployment. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded offering-plus-availability descriptors that acknowledge exclusion and deny inclusion or cloud claims without filesystem, network, bind or clock state, keeping exclusion acknowledgement separate from route, save, phase, procedural, bind, containment, zero-install and provenance gates.
+
+Reusable deterministic JSON core: `js/community/excluded_offering_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of offering and availability. Returns an object literal with decision allow or deny, reason code string, exclusion object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null exclusion; iterate Object.entries of payload and if any key is not offering or availability return deny unknown-field with null exclusion; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null exclusion; collect entries into a Map; offering must be a string exactly leaderboard or sdk or production via Map lookup else if missing or non-string return deny bad-offering with null exclusion else return deny unknown-offering with null exclusion; availability must be a string exactly excluded via Map lookup else if missing or non-string return deny bad-availability with null exclusion else if availability is included or cloud or live or deployed via Map lookup return deny overclaim-availability with null exclusion else return deny unknown-availability with null exclusion; on success return allow ok-excluded with exclusion object literal holding offering and availability. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce browser-local gameplay and scores, procedural canvas fallback with browser-generated sound, local serving on 127.0.0.1 port 8080 with per-request lstat plus realpath containment, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "availability": "excluded",
+    "offering": "leaderboard"
+  },
+  "output": {
+    "decision": "allow",
+    "exclusion": {
+      "availability": "excluded",
+      "offering": "leaderboard"
+    },
+    "reason": "ok-excluded"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "availability": "excluded",
+    "offering": "sdk"
+  },
+  "output": {
+    "decision": "allow",
+    "exclusion": {
+      "availability": "excluded",
+      "offering": "sdk"
+    },
+    "reason": "ok-excluded"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "availability": "included",
+    "offering": "production"
+  },
+  "output": {
+    "decision": "deny",
+    "exclusion": null,
+    "reason": "overclaim-availability"
+  }
+}
+```
+
+Public regression tests: `test/community_excluded_offering_gate.test.js`.
