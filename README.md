@@ -1047,3 +1047,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_local_command_gate.test.js`.
+
+
+<!-- community-core:open-content-boundary-gate -->
+### Deterministic code-only content boundary gate for open edition scope
+
+Mirrors the open edition code-only rule that gameplay source, procedural fallback and browser-local saves are included while original images, 3D files, recorded voices and marketing material are excluded for unestablished redistribution rights. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded content-plus-basis descriptors and deny excluded or out-of-scope variants without filesystem, network, bind or clock state, keeping content-boundary validation separate from route, save, phase, procedural, containment, status, bind and exclusion gates.
+
+Reusable deterministic JSON core: `js/community/open_content_boundary_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of content and basis. Returns an object literal with decision allow or deny, reason code string, boundary object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null boundary; iterate Object.entries of payload and if any key is not content or basis return deny unknown-field with null boundary; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null boundary; collect entries into a Map; content must be a string via Map lookup among gameplay-source, procedural-fallback and local-save else if missing or non-string return deny bad-content with null boundary; if content is not in the allowed set but is in the excluded set of image, model-3d, recorded-voice and marketing-material via Map lookup return deny excluded-material with null boundary; if content is neither allowed nor excluded return deny unknown-content with null boundary; basis must be a string exactly code-only via Map lookup else if missing or non-string return deny bad-basis with null boundary else return deny unknown-basis with null boundary; on success return allow ok-code-only with boundary object literal holding content and basis. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock and never uses Date; callers must still enforce code-only inclusion with procedural canvas fallback and browser-generated sound, browser-local saves, local serving on 127.0.0.1, per-request lstat plus realpath containment, and exclusion of original images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "basis": "code-only",
+    "content": "gameplay-source"
+  },
+  "output": {
+    "boundary": {
+      "basis": "code-only",
+      "content": "gameplay-source"
+    },
+    "decision": "allow",
+    "reason": "ok-code-only"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "basis": "code-only",
+    "content": "image"
+  },
+  "output": {
+    "boundary": null,
+    "decision": "deny",
+    "reason": "excluded-material"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "basis": "cloud",
+    "content": "gameplay-source"
+  },
+  "output": {
+    "boundary": null,
+    "decision": "deny",
+    "reason": "unknown-basis"
+  }
+}
+```
+
+Public regression tests: `test/community_open_content_boundary_gate.test.js`.
