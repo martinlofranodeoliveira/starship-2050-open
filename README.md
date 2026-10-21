@@ -79,3 +79,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_static_route_gate.test.js`.
+
+
+<!-- community-core:browser-save-gate -->
+### Deterministic browser-local save gate for open edition play
+
+Mirrors the open edition rule that gameplay and scores stay in this browser with local saves and no cloud leaderboard, SDK download or production deployment. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded store-plus-record descriptors and deny cloud or out-of-scope variants without filesystem, network, bind or clock state, keeping save validation separate from route, script and procedural gates.
+
+Reusable deterministic JSON core: `js/community/browser_save_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of store and record. Returns an object literal with decision allow or deny, reason code string, saved object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null saved; iterate Object.entries of payload and if any key is not store or record return deny unknown-field with null saved; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null saved; collect entries into a Map; store must be a string exactly browser-local via Map lookup else if missing or non-string return deny bad-store with null saved else return deny unknown-store with null saved; record must be a string exactly gameplay or score via Map lookup else if missing or non-string return deny bad-record with null saved else return deny unknown-record with null saved; on success return allow ok-local with saved object literal holding store and record. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce browser-local saves, procedural canvas fallback with browser-generated sound, local serving on 127.0.0.1, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "record": "gameplay",
+    "store": "browser-local"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-local",
+    "saved": {
+      "record": "gameplay",
+      "store": "browser-local"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "record": "score",
+    "store": "browser-local"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-local",
+    "saved": {
+      "record": "score",
+      "store": "browser-local"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "record": "score",
+    "store": "cloud"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-store",
+    "saved": null
+  }
+}
+```
+
+Public regression tests: `test/community_browser_save_gate.test.js`.
