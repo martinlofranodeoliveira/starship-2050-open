@@ -442,3 +442,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_zero_install_gate.test.js`.
+
+
+<!-- community-core:private-origin-gate -->
+### Deterministic private origin gate for open edition provenance
+
+Mirrors the open edition rule that the private original and its history are preserved separately with code-only open sources and local saves. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded origin-plus-history descriptors and deny non-private or out-of-scope variants without filesystem, network, bind or clock state, keeping provenance validation separate from route, save, phase, procedural, bind, containment and zero-install gates.
+
+Reusable deterministic JSON core: `js/community/private_origin_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of origin and history. Returns an object literal with decision allow or deny, reason code string, preserved object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null preserved; iterate Object.entries of payload and if any key is not origin or history return deny unknown-field with null preserved; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null preserved; collect entries into a Map; origin must be a string exactly private via Map lookup else if missing or non-string return deny bad-origin with null preserved else return deny unknown-origin with null preserved; history must be a string exactly separate via Map lookup else if missing or non-string return deny bad-history with null preserved else return deny unknown-history with null preserved; on success return allow ok-preserved with preserved object literal holding origin and history. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce private original preserved separately with code-only open edition, procedural canvas fallback with browser-generated sound, browser-local saves, local serving on 127.0.0.1 port 8080 with per-request lstat plus realpath containment, and exclusion of images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "history": "separate",
+    "origin": "private"
+  },
+  "output": {
+    "decision": "allow",
+    "preserved": {
+      "history": "separate",
+      "origin": "private"
+    },
+    "reason": "ok-preserved"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "history": "separate",
+    "origin": "public"
+  },
+  "output": {
+    "decision": "deny",
+    "preserved": null,
+    "reason": "unknown-origin"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "history": "shared",
+    "origin": "private"
+  },
+  "output": {
+    "decision": "deny",
+    "preserved": null,
+    "reason": "unknown-history"
+  }
+}
+```
+
+Public regression tests: `test/community_private_origin_gate.test.js`.
