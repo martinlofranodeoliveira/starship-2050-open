@@ -324,3 +324,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_loopback_bind_gate.test.js`.
+
+
+<!-- community-core:static-containment-gate -->
+### Deterministic static containment gate for open edition serving
+
+Mirrors the open edition rule that static serving only serves regular files inside the repository root and returns 404 without bytes when any path component is a symlink or the resolved target escapes the root. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded entry-plus-zone descriptors and deny symlink or outside-root variants without filesystem, network, bind or clock state, keeping containment validation separate from route, save, phase and procedural gates.
+
+Reusable deterministic JSON core: `js/community/static_containment_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of entry and zone. Returns an object literal with decision allow or deny, reason code string, containment object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null containment; iterate Object.entries of payload and if any key is not entry or zone return deny unknown-field with null containment; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null containment; collect entries into a Map; entry must be a string exactly regular-file or symlink or escaping via Map lookup else if missing or non-string return deny bad-entry with null containment else return deny unknown-entry with null containment; zone must be a string exactly inside-root or outside-root via Map lookup else if missing or non-string return deny bad-zone with null containment else return deny unknown-zone with null containment; enforce allowed pairing where only regular-file with inside-root is allowed else return deny not-contained with null containment; on success return allow ok-contained with containment object literal holding entry and zone. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce per-request lstat plus realpath containment with 404 without bytes for symlink traversal dotfile and private targets, 405 for non-GET/HEAD, bind 127.0.0.1, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "entry": "regular-file",
+    "zone": "inside-root"
+  },
+  "output": {
+    "containment": {
+      "entry": "regular-file",
+      "zone": "inside-root"
+    },
+    "decision": "allow",
+    "reason": "ok-contained"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "entry": "symlink",
+    "zone": "inside-root"
+  },
+  "output": {
+    "containment": null,
+    "decision": "deny",
+    "reason": "not-contained"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "entry": "regular-file",
+    "zone": "outside-root"
+  },
+  "output": {
+    "containment": null,
+    "decision": "deny",
+    "reason": "not-contained"
+  }
+}
+```
+
+Public regression tests: `test/community_static_containment_gate.test.js`.
