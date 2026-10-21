@@ -265,3 +265,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_procedural_asset_gate.test.js`.
+
+
+<!-- community-core:loopback-bind-gate -->
+### Deterministic loopback bind gate for open edition serving
+
+Mirrors the open edition rule that the local server binds only to 127.0.0.1 and is opened at http://127.0.0.1:8080 with static serving only. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded host-plus-port descriptors and deny non-loopback or out-of-scope variants without filesystem, network, bind or clock state, keeping bind validation separate from route, save, phase and procedural gates.
+
+Reusable deterministic JSON core: `js/community/loopback_bind_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of host and port. Returns an object literal with decision allow or deny, reason code string, binding object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null binding; iterate Object.entries of payload and if any key is not host or port return deny unknown-field with null binding; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null binding; collect entries into a Map; host must be a string exactly 127.0.0.1 via Map lookup else if missing or non-string return deny bad-host with null binding else return deny unknown-host with null binding; port must be a number exactly 8080 via Map lookup else if missing or non-number return deny bad-port with null binding else return deny unknown-port with null binding; on success return allow ok-loopback with binding object literal holding host and port. It preserves input, uses only object literals, arrays with push, and Maps, never reads bind address, regular-file state, storage, network, or clock; callers must still enforce serving on 127.0.0.1 port 8080 with per-request lstat plus realpath containment, 404 without bytes for symlink traversal dotfile and private targets, 405 for non-GET/HEAD, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "host": "127.0.0.1",
+    "port": 8080
+  },
+  "output": {
+    "binding": {
+      "host": "127.0.0.1",
+      "port": 8080
+    },
+    "decision": "allow",
+    "reason": "ok-loopback"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "host": "0.0.0.0",
+    "port": 8080
+  },
+  "output": {
+    "binding": null,
+    "decision": "deny",
+    "reason": "unknown-host"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "host": "127.0.0.1",
+    "port": 3000
+  },
+  "output": {
+    "binding": null,
+    "decision": "deny",
+    "reason": "unknown-port"
+  }
+}
+```
+
+Public regression tests: `test/community_loopback_bind_gate.test.js`.
