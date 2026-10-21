@@ -563,3 +563,59 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_node_engine_gate.test.js`.
+
+
+<!-- community-core:local-status-code-gate -->
+### Deterministic local HTTP status gate for open edition responses
+
+Mirrors the open edition rule that local serving on 127.0.0.1 maps / to index.html plus js/ and css/ only, returns 404 without bytes for dotfile, traversal, symlink, escape, private and unknown targets and 405 for non-GET/HEAD. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded outcome-plus-detail descriptors and map them to 200, 404 or 405 without filesystem, network, bind or clock state, keeping status mapping separate from route, save, phase, procedural, bind, containment, zero-install and provenance gates.
+
+Reusable deterministic JSON core: `js/community/local_status_code_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of outcome and detail. Returns an object literal with decision allow or deny, reason code string, status number or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null status; iterate Object.entries of payload and if any key is not outcome or detail return deny unknown-field with null status; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null status; collect entries into a Map; outcome must be a string exactly served or missing or rejected via Map lookup else if missing or non-string return deny bad-outcome with null status else return deny unknown-outcome with null status; detail must be a string exactly static or dotfile or traversal or symlink or escape or private or unknown or method via Map lookup else if missing or non-string return deny bad-detail with null status else return deny unknown-detail with null status; enforce pairing where served requires static and missing requires dotfile or traversal or symlink or escape or private or unknown and rejected requires method else return deny mismatch-detail with null status; on success if outcome is served return allow ok-serve with status 200, if outcome is missing return allow ok-missing with status 404, if outcome is rejected return allow ok-rejected with status 405. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce per-request lstat plus realpath containment with 404 without bytes, 405 for non-GET/HEAD, 404 for symlink traversal dotfile and private targets, bind 127.0.0.1, procedural canvas fallback and browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "detail": "static",
+    "outcome": "served"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-serve",
+    "status": 200
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "detail": "traversal",
+    "outcome": "missing"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-missing",
+    "status": 404
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "detail": "method",
+    "outcome": "rejected"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-rejected",
+    "status": 405
+  }
+}
+```
+
+Public regression tests: `test/community_local_status_code_gate.test.js`.
