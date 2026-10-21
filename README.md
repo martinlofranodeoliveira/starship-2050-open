@@ -501,3 +501,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_private_origin_gate.test.js`.
+
+
+<!-- community-core:node-engine-gate -->
+### Deterministic Node engine gate for open edition runtime
+
+Mirrors the open edition rule that execution requires Node.js 22 or later with no package installation. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded engine-plus-major descriptors and deny too-old, future or out-of-scope variants without filesystem, network, bind or clock state, keeping runtime validation separate from route, save, phase, procedural, bind, containment, zero-install and provenance gates.
+
+Reusable deterministic JSON core: `js/community/node_engine_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of engine and major. Returns an object literal with decision allow or deny, reason code string, runtime object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null runtime; iterate Object.entries of payload and if any key is not engine or major return deny unknown-field with null runtime; if any string value contains colon-slash-slash or backslash return deny bad-value with null runtime; collect entries into a Map; engine must be a string exactly node via Map lookup else if missing or non-string return deny bad-engine with null runtime else return deny unknown-engine with null runtime; major must be a number finite safe integer else if missing or non-number or non-integer or outside safe range return deny bad-major with null runtime; if major is less than 22 return deny too-old with null runtime; if major is greater than 48 return deny future-version with null runtime; on success return allow ok-engine with runtime object literal holding engine and major. It preserves input, uses only object literals, arrays with push, and Maps, never reads file state, bind address, storage, network, or clock; callers must still enforce Node.js 22 or later execution, zero package installation, browser-local saves, procedural canvas fallback with browser-generated sound, local serving on 127.0.0.1, and exclusion of cloud leaderboard, SDK download and production deployment.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "engine": "node",
+    "major": 22
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-engine",
+    "runtime": {
+      "engine": "node",
+      "major": 22
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "engine": "node",
+    "major": 24
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-engine",
+    "runtime": {
+      "engine": "node",
+      "major": 24
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "engine": "node",
+    "major": 20
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "too-old",
+    "runtime": null
+  }
+}
+```
+
+Public regression tests: `test/community_node_engine_gate.test.js`.
