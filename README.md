@@ -985,3 +985,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_smoke_coverage_limit_gate.test.js`.
+
+
+<!-- community-core:local-command-gate -->
+### Deterministic local command gate for open edition checks
+
+Mirrors the open edition rule that local validation uses npm run check, npm test and npm start with Node 22 and no package installation or credentials. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded runner-plus-script descriptors and deny installer or out-of-scope variants without processes, filesystem, network, bind or clock state, keeping command validation separate from route, save, phase, procedural, containment, status and exclusion gates.
+
+Reusable deterministic JSON core: `js/community/local_command_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of runner and script. Returns an object literal with decision allow or deny, reason code string, command object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null command; iterate Object.entries of payload and if any key is not runner or script return deny unknown-field with null command; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null command; collect entries into a Map; runner must be a string exactly npm via Map lookup else if missing or non-string return deny bad-runner with null command else return deny unknown-runner with null command; script must be a string exactly check or test or start via Map lookup else if missing or non-string return deny bad-script with null command else return deny unknown-script with null command; on success return allow ok-command with command object literal holding runner and script. It preserves input, uses only object literals, arrays with push, and Maps, never reads filesystem, processes, network, bind, storage, or clock and never uses Date; callers must still enforce Node 22 execution, no package installation or credentials, local serving on 127.0.0.1 with procedural canvas fallback and browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "runner": "npm",
+    "script": "check"
+  },
+  "output": {
+    "command": {
+      "runner": "npm",
+      "script": "check"
+    },
+    "decision": "allow",
+    "reason": "ok-command"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "runner": "npm",
+    "script": "start"
+  },
+  "output": {
+    "command": {
+      "runner": "npm",
+      "script": "start"
+    },
+    "decision": "allow",
+    "reason": "ok-command"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "runner": "npm",
+    "script": "deploy"
+  },
+  "output": {
+    "command": null,
+    "decision": "deny",
+    "reason": "unknown-script"
+  }
+}
+```
+
+Public regression tests: `test/community_local_command_gate.test.js`.
