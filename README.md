@@ -1531,3 +1531,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_code_only_artifact_gate.test.js`.
+
+
+<!-- community-core:notice-reference-gate -->
+### Deterministic NOTICE reference gate for private history preservation
+
+Mirrors the open edition rule that the private original and its history are preserved separately with a NOTICE.md pointer while the open release stays code-only with procedural rendering and browser-local saves. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded notice-plus-topic descriptors and deny out-of-scope variants without filesystem, network, bind or clock state, keeping notice validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/notice_reference_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of notice and topic. Returns an object literal with decision allow or deny, reason code string, reference object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null reference; iterate Object.entries of payload and if any key is not notice or topic return deny unknown-field with null reference; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null reference; collect entries into a Map; notice must be a string exactly NOTICE.md via Map lookup else if missing or non-string return deny bad-notice with null reference else return deny unknown-notice with null reference; topic must be a string exactly private-history via Map lookup else if missing or non-string return deny bad-topic with null reference else return deny unknown-topic with null reference; on success return allow ok-notice with reference object literal holding notice and topic. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce private original and history preserved separately with NOTICE pointer, code-only scope with procedural canvas fallback and browser-generated sound, browser-local saves, local serving on 127.0.0.1 with per-request lstat plus realpath containment, and exclusion of images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "notice": "NOTICE.md",
+    "topic": "private-history"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-notice",
+    "reference": {
+      "notice": "NOTICE.md",
+      "topic": "private-history"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "notice": "README.md",
+    "topic": "private-history"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-notice",
+    "reference": null
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "notice": "NOTICE.md",
+    "topic": "gameplay"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-topic",
+    "reference": null
+  }
+}
+```
+
+Public regression tests: `test/community_notice_reference_gate.test.js`.
