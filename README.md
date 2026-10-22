@@ -1289,3 +1289,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_regular_file_site_gate.test.js`.
+
+
+<!-- community-core:manual-smoke-step-gate -->
+### Deterministic manual smoke step gate for open edition browser check
+
+Mirrors the open edition rule that the game was opened and started manually in a browser with the procedural renderer as a smoke check, not exhaustive gameplay coverage. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded manual actor-plus-step descriptors and deny automated or out-of-scope variants without filesystem, network, bind or clock state, keeping manual-smoke validation separate from route, save, phase, procedural, containment, status, bind, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/manual_smoke_step_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of actor and step. Returns an object literal with decision allow or deny, reason code string, smoke object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null smoke; iterate Object.entries of payload and if any key is not actor or step return deny unknown-field with null smoke; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null smoke; collect entries into a Map; actor must be a string exactly manual via Map lookup else if missing or non-string return deny bad-actor with null smoke else return deny unknown-actor with null smoke; step must be a string exactly open or start via Map lookup else if missing or non-string return deny bad-step with null smoke else return deny unknown-step with null smoke; on success return allow ok-manual with smoke object literal holding actor and step. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock and never uses Date; callers must still enforce manual browser open and start with procedural canvas fallback and browser-generated sound, smoke check not exhaustive gameplay coverage, local HTTP serving on 127.0.0.1 with per-request lstat plus realpath containment and 404 without bytes, 405 for non-GET/HEAD, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "actor": "manual",
+    "step": "open"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-manual",
+    "smoke": {
+      "actor": "manual",
+      "step": "open"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "actor": "manual",
+    "step": "start"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-manual",
+    "smoke": {
+      "actor": "manual",
+      "step": "start"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "actor": "manual",
+    "step": "serve"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-step",
+    "smoke": null
+  }
+}
+```
+
+Public regression tests: `test/community_manual_smoke_step_gate.test.js`.
