@@ -1649,3 +1649,67 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_local_open_url_gate.test.js`.
+
+
+<!-- community-core:static-content-type-gate -->
+### Deterministic static content-type gate for open edition serving
+
+Mirrors the open edition rule that static serving maps / to index.html plus js/ and css/ only with procedural canvas fallback and browser-local saves. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded folder-plus-file descriptors and map them to text/html, text/javascript or text/css while denying out-of-scope variants without filesystem, network, bind or clock state, keeping content-type validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/static_content_type_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of folder and file. Returns an object literal with decision allow or deny, reason code string, media object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null media; iterate Object.entries of payload and if any key is not folder or file return deny unknown-field with null media; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null media; collect entries into a Map; folder must be a string exactly root or js or css via Map lookup else if missing or non-string return deny bad-folder with null media else return deny unknown-folder with null media; file must be a non-empty string else if missing or non-string or empty return deny bad-file with null media; if file contains slash or colon return deny bad-file with null media; iterate characters of file with for-of allowing only A-Z a-z 0-9 dot hyphen underscore via Map lookup else return deny bad-name with null media; enforce pairing where root requires file exactly index.html via Map lookup else return deny mismatch-type with null media, js requires file ending with .js with non-empty basename else return deny mismatch-type with null media, css requires file ending with .css with non-empty basename else return deny mismatch-type with null media; on success select contentType via Map lookup where root maps to text/html and js maps to text/javascript and css maps to text/css and return allow ok-media with media object literal holding folder and file and contentType. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce static serving of / to index.html plus js/ and css/ only with per-request lstat plus realpath containment, 404 without bytes for symlink traversal dotfile and private targets, 405 for non-GET/HEAD, bind 127.0.0.1, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "file": "index.html",
+    "folder": "root"
+  },
+  "output": {
+    "decision": "allow",
+    "media": {
+      "contentType": "text/html",
+      "file": "index.html",
+      "folder": "root"
+    },
+    "reason": "ok-media"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "file": "game.js",
+    "folder": "js"
+  },
+  "output": {
+    "decision": "allow",
+    "media": {
+      "contentType": "text/javascript",
+      "file": "game.js",
+      "folder": "js"
+    },
+    "reason": "ok-media"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "file": "game.js",
+    "folder": "css"
+  },
+  "output": {
+    "decision": "deny",
+    "media": null,
+    "reason": "mismatch-type"
+  }
+}
+```
+
+Public regression tests: `test/community_static_content_type_gate.test.js`.
