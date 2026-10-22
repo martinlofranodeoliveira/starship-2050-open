@@ -1713,3 +1713,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_static_content_type_gate.test.js`.
+
+
+<!-- community-core:syntax-target-gate -->
+### Deterministic syntax target gate for open edition JavaScript
+
+Mirrors the open edition rule that validation covers JavaScript syntax for complete gameplay source with local serving and manual smoke check and no cloud. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded path-plus-check descriptors for js/game.js and server.js and deny out-of-scope variants without filesystem, network, bind or clock state, keeping syntax-target validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/syntax_target_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of path and check. Returns an object literal with decision allow or deny, reason code string, subject object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null subject; iterate Object.entries of payload and if any key is not path or check return deny unknown-field with null subject; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null subject; collect entries into a Map; path must be a string exactly js/game.js or server.js via Map lookup else if missing or non-string return deny bad-path with null subject else return deny unknown-path with null subject; check must be a string exactly syntax via Map lookup else if missing or non-string return deny bad-check with null subject else return deny unknown-check with null subject; on success return allow ok-syntax with subject object literal holding path and check. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce JavaScript syntax validation via npm run check for js/game.js and server.js, local HTTP serving on 127.0.0.1:8080 with per-request lstat plus realpath containment, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "check": "syntax",
+    "path": "js/game.js"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-syntax",
+    "subject": {
+      "check": "syntax",
+      "path": "js/game.js"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "check": "syntax",
+    "path": "server.js"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-syntax",
+    "subject": {
+      "check": "syntax",
+      "path": "server.js"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "check": "serve",
+    "path": "js/game.js"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-check",
+    "subject": null
+  }
+}
+```
+
+Public regression tests: `test/community_syntax_target_gate.test.js`.
