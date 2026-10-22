@@ -1230,3 +1230,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_excluded_media_rights_gate.test.js`.
+
+
+<!-- community-core:regular-file-site-gate -->
+### Deterministic regular-file site gate for open edition serving
+
+Mirrors the open edition rule that static serving only serves regular files inside the repository root and denies symlinked or outside targets. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded kind-plus-site descriptors and deny non-regular or outside variants without filesystem, network, bind or clock state, keeping file-kind validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/regular_file_site_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of kind and site. Returns an object literal with decision allow or deny, reason code string, entry object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null entry; iterate Object.entries of payload and if any key is not kind or site return deny unknown-field with null entry; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null entry; collect entries into a Map; kind must be a string exactly regular or directory or symlink via Map lookup else if missing or non-string return deny bad-kind with null entry else return deny unknown-kind with null entry; site must be a string exactly inside or outside via Map lookup else if missing or non-string return deny bad-site with null entry else return deny unknown-site with null entry; enforce allowed pairing where only kind regular with site inside is allowed else return deny mismatch-file with null entry; on success return allow ok-file with entry object literal holding kind and site. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock and never uses Date; callers must still enforce per-request lstat plus realpath containment with 404 without bytes for symlinks and outside-root targets, 405 for non-GET/HEAD, 404 for traversal dotfile and private targets, bind 127.0.0.1, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "kind": "regular",
+    "site": "inside"
+  },
+  "output": {
+    "decision": "allow",
+    "entry": {
+      "kind": "regular",
+      "site": "inside"
+    },
+    "reason": "ok-file"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "kind": "symlink",
+    "site": "inside"
+  },
+  "output": {
+    "decision": "deny",
+    "entry": null,
+    "reason": "mismatch-file"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "kind": "regular",
+    "site": "outside"
+  },
+  "output": {
+    "decision": "deny",
+    "entry": null,
+    "reason": "mismatch-file"
+  }
+}
+```
+
+Public regression tests: `test/community_regular_file_site_gate.test.js`.
