@@ -1469,3 +1469,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_credential_absence_gate.test.js`.
+
+
+<!-- community-core:code-only-artifact-gate -->
+### Deterministic code-only artifact gate for open edition scope
+
+Mirrors the open edition rule that the code-only release includes complete gameplay source with local saves while excluding images, 3D files, recorded voices and marketing material. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded edition-plus-artifact descriptors and deny excluded or out-of-scope variants without filesystem, network, bind or clock state, keeping code-artifact validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/code_only_artifact_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of edition and artifact. Returns an object literal with decision allow or deny, reason code string, code object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null code; iterate Object.entries of payload and if any key is not edition or artifact return deny unknown-field with null code; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null code; collect entries into a Map; edition must be a string exactly open or code-only via Map lookup else if missing or non-string return deny bad-edition with null code else return deny unknown-edition with null code; artifact must be a string exactly gameplay or source via Map lookup else if missing or non-string return deny bad-artifact with null code else return deny unknown-artifact with null code; on success return allow ok-code with code object literal holding edition and artifact. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce code-only scope with complete gameplay source, procedural canvas fallback with browser-generated sound, browser-local saves, local serving on 127.0.0.1 with per-request lstat plus realpath containment, and exclusion of images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "artifact": "gameplay",
+    "edition": "open"
+  },
+  "output": {
+    "code": {
+      "artifact": "gameplay",
+      "edition": "open"
+    },
+    "decision": "allow",
+    "reason": "ok-code"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "artifact": "source",
+    "edition": "code-only"
+  },
+  "output": {
+    "code": {
+      "artifact": "source",
+      "edition": "code-only"
+    },
+    "decision": "allow",
+    "reason": "ok-code"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "artifact": "image",
+    "edition": "open"
+  },
+  "output": {
+    "code": null,
+    "decision": "deny",
+    "reason": "unknown-artifact"
+  }
+}
+```
+
+Public regression tests: `test/community_code_only_artifact_gate.test.js`.
