@@ -1590,3 +1590,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_notice_reference_gate.test.js`.
+
+
+<!-- community-core:local-open-url-gate -->
+### Deterministic local open URL gate for open edition browsing
+
+Mirrors the open edition rule that the game is opened at http://127.0.0.1:8080 with local serving bound to loopback. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded scheme-plus-hostport descriptors and deny cloud, file, or out-of-scope variants without filesystem, network, bind or clock state, keeping open-URL validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/local_open_url_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of scheme and hostport. Returns an object literal with decision allow or deny, reason code string, open object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null open; iterate Object.entries of payload and if any key is not scheme or hostport return deny unknown-field with null open; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null open; collect entries into a Map; scheme must be a string exactly http via Map lookup else if missing or non-string return deny bad-scheme with null open else return deny unknown-scheme with null open; hostport must be a string exactly 127.0.0.1:8080 via Map lookup else if missing or non-string return deny bad-hostport with null open else return deny unknown-hostport with null open; on success return allow ok-open with open object literal holding scheme and hostport. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce local HTTP serving on 127.0.0.1:8080 with per-request lstat plus realpath containment, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "hostport": "127.0.0.1:8080",
+    "scheme": "http"
+  },
+  "output": {
+    "decision": "allow",
+    "open": {
+      "hostport": "127.0.0.1:8080",
+      "scheme": "http"
+    },
+    "reason": "ok-open"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "hostport": "127.0.0.1:8080",
+    "scheme": "https"
+  },
+  "output": {
+    "decision": "deny",
+    "open": null,
+    "reason": "unknown-scheme"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "hostport": "0.0.0.0:8080",
+    "scheme": "http"
+  },
+  "output": {
+    "decision": "deny",
+    "open": null,
+    "reason": "unknown-hostport"
+  }
+}
+```
+
+Public regression tests: `test/community_local_open_url_gate.test.js`.
