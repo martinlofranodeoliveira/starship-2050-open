@@ -1410,3 +1410,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_symlink_component_policy_gate.test.js`.
+
+
+<!-- community-core:credential-absence-gate -->
+### Deterministic credential-absence gate for open edition local use
+
+Mirrors the open edition rule that no package installation or credentials are needed for Node 22 local serving. It gives syntax checks, unit tests and docs a pure deterministic gate to accept credential-free descriptors and deny credentialed variants without env, network or secrets, keeping credential validation separate from install, engine, route, save, phase, procedural, containment, status, bind, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/credential_absence_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of credential and handling. Returns an object literal with decision allow or deny, reason code string, absence object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null absence; iterate Object.entries of payload and if any key is not credential or handling return deny unknown-field with null absence; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null absence; collect entries into a Map; credential must be a string exactly none via Map lookup else if missing or non-string return deny bad-credential with null absence else return deny unknown-credential with null absence; handling must be a string exactly absent via Map lookup else if missing or non-string return deny bad-handling with null absence else return deny unknown-handling with null absence; on success return allow ok-absent with absence object literal holding credential and handling. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce zero package installation with no credentials in env or files, Node 22 or later, per-request lstat plus realpath containment with 404 without bytes, 405 for non-GET/HEAD, 404 for traversal dotfile symlink and private targets, bind 127.0.0.1:8080, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "credential": "none",
+    "handling": "absent"
+  },
+  "output": {
+    "absence": {
+      "credential": "none",
+      "handling": "absent"
+    },
+    "decision": "allow",
+    "reason": "ok-absent"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "credential": "token",
+    "handling": "absent"
+  },
+  "output": {
+    "absence": null,
+    "decision": "deny",
+    "reason": "unknown-credential"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "credential": "none",
+    "handling": "required"
+  },
+  "output": {
+    "absence": null,
+    "decision": "deny",
+    "reason": "unknown-handling"
+  }
+}
+```
+
+Public regression tests: `test/community_credential_absence_gate.test.js`.
