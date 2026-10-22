@@ -1351,3 +1351,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_manual_smoke_step_gate.test.js`.
+
+
+<!-- community-core:symlink-component-policy-gate -->
+### Deterministic symlink component policy gate for open edition serving
+
+Mirrors the open edition rule that static serving only serves regular files inside the repository root, denies any symlink path component even when the resolved target stays inside the root, and returns 404 without target bytes when the target escapes the root. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded component-plus-placement descriptors and deny symlink or outside variants without filesystem, network, bind or clock state, keeping component validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/symlink_component_policy_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of component and placement. Returns an object literal with decision allow or deny, reason code string, policy object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null policy; iterate Object.entries of payload and if any key is not component or placement return deny unknown-field with null policy; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null policy; collect entries into a Map; component must be a string exactly regular or symlink via Map lookup else if missing or non-string return deny bad-component with null policy else return deny unknown-component with null policy; placement must be a string exactly inside or outside via Map lookup else if missing or non-string return deny bad-placement with null policy else return deny unknown-placement with null policy; if placement is outside return deny outside-root with null policy; if component is symlink return deny symlink-denied with null policy; on success return allow ok-regular with policy object literal holding component and placement. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce per-request lstat plus realpath containment with 404 without bytes, 405 for non-GET/HEAD, 404 for traversal dotfile symlink and private targets, bind 127.0.0.1, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "component": "regular",
+    "placement": "inside"
+  },
+  "output": {
+    "decision": "allow",
+    "policy": {
+      "component": "regular",
+      "placement": "inside"
+    },
+    "reason": "ok-regular"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "component": "symlink",
+    "placement": "inside"
+  },
+  "output": {
+    "decision": "deny",
+    "policy": null,
+    "reason": "symlink-denied"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "component": "regular",
+    "placement": "outside"
+  },
+  "output": {
+    "decision": "deny",
+    "policy": null,
+    "reason": "outside-root"
+  }
+}
+```
+
+Public regression tests: `test/community_symlink_component_policy_gate.test.js`.
