@@ -1775,3 +1775,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_syntax_target_gate.test.js`.
+
+
+<!-- community-core:local-write-denial-gate -->
+### Deterministic local write denial gate for open edition serving
+
+Mirrors the open edition rule that validation includes unsupported writes and non-GET/HEAD remain denied with 405 while GET and HEAD serve static files. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded operation-plus-method descriptors and deny out-of-scope variants without filesystem, network, bind or clock state, keeping write-denial validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/local_write_denial_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of operation and method. Returns an object literal with decision allow or deny, reason code string, verdict object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null verdict; iterate Object.entries of payload and if any key is not operation or method return deny unknown-field with null verdict; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null verdict; collect entries into a Map; operation must be a string exactly read or write via Map lookup else if missing or non-string return deny bad-operation with null verdict else return deny unknown-operation with null verdict; method must be a string exactly GET or HEAD or POST or PUT or DELETE or PATCH via Map lookup else if missing or non-string return deny bad-method with null verdict else return deny unknown-method with null verdict; enforce pairing where read requires GET or HEAD and write requires POST or PUT or DELETE or PATCH else return deny mismatch-operation with null verdict; if operation is read return allow ok-read with verdict object literal holding operation and method; if operation is write return deny denied-write with null verdict. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce static serving of / to index.html plus js/ and css/ only with per-request lstat plus realpath containment, 404 without bytes for symlink traversal dotfile and private targets, 405 for non-GET/HEAD, bind 127.0.0.1:8080, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "method": "GET",
+    "operation": "read"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-read",
+    "verdict": {
+      "method": "GET",
+      "operation": "read"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "method": "POST",
+    "operation": "write"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "denied-write",
+    "verdict": null
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "method": "POST",
+    "operation": "read"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "mismatch-operation",
+    "verdict": null
+  }
+}
+```
+
+Public regression tests: `test/community_local_write_denial_gate.test.js`.
