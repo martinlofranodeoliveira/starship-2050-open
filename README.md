@@ -1834,3 +1834,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_local_write_denial_gate.test.js`.
+
+
+<!-- community-core:index-ref-gate -->
+### Deterministic index reference gate for open edition local assets
+
+Mirrors the open edition rule that static serving maps / to index.html plus js/ and css/ only with procedural canvas fallback and browser-local saves. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded page-plus-ref descriptors for index.html local js/game.js and css/style.css references while denying remote, encoded or out-of-scope variants without filesystem, network, bind or clock state, keeping index-reference validation separate from route, save, phase, procedural, containment, status, bind, port, offering and fixture gates.
+
+Reusable deterministic JSON core: `js/community/index_ref_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of page and ref. Returns an object literal with decision allow or deny, reason code string, link object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null link; iterate Object.entries of payload and if any key is not page or ref return deny unknown-field with null link; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null link; collect entries into a Map; page must be a string exactly index.html via Map lookup else if missing or non-string return deny bad-page with null link else return deny unknown-page with null link; ref must be a non-empty string else if missing or non-string or empty return deny bad-ref with null link; if ref contains double-slash or colon or question-mark or hash or percent return deny bad-ref with null link; if ref starts with slash return deny bad-ref with null link; iterate characters of ref with for-of allowing only A-Z a-z 0-9 slash dot hyphen underscore via Map lookup else return deny bad-name with null link; ref must be exactly js/game.js or css/style.css via Map lookup else return deny unknown-ref with null link; on success return allow ok-link with link object literal holding page and ref. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce static serving of / to index.html plus js/ and css/ only with per-request lstat plus realpath containment, 404 without bytes for symlink traversal dotfile and private targets, 405 for non-GET/HEAD, bind 127.0.0.1, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "page": "index.html",
+    "ref": "js/game.js"
+  },
+  "output": {
+    "decision": "allow",
+    "link": {
+      "page": "index.html",
+      "ref": "js/game.js"
+    },
+    "reason": "ok-link"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "page": "index.html",
+    "ref": "css/style.css"
+  },
+  "output": {
+    "decision": "allow",
+    "link": {
+      "page": "index.html",
+      "ref": "css/style.css"
+    },
+    "reason": "ok-link"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "page": "index.html",
+    "ref": "https://cdn.example.com/game.js"
+  },
+  "output": {
+    "decision": "deny",
+    "link": null,
+    "reason": "bad-value"
+  }
+}
+```
+
+Public regression tests: `test/community_index_ref_gate.test.js`.
