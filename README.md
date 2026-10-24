@@ -2018,3 +2018,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_public_entry_file_gate.test.js`.
+
+
+<!-- community-core:open-license-notice-gate -->
+### Deterministic open license notice gate for open edition docs
+
+Mirrors the code-only open edition rule that LICENSE and NOTICE.md accompany the open gameplay source while the private original and its history stay separate and original images, 3D files, recorded voices and marketing material stay excluded for lack of redistribution rights. It gives syntax checks, unit tests and docs a pure deterministic allowlist to accept only the LICENSE plus NOTICE.md doc pair and deny other docs without filesystem, network, bind or clock state, keeping doc-pair validation separate from route, save, phase, asset, entry, containment, status, bind, port, offering, fixture and media-rights gates.
+
+Reusable deterministic JSON core: `js/community/open_license_notice_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of license and notice. Returns an object literal with decision allow or deny, reason code string, docs object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null docs; iterate Object.entries of payload and if any key is not license or notice return deny unknown-field with null docs; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null docs; collect entries into a Map; license must be a string via Map lookup else if missing or non-string return deny bad-license with null docs; via Map lookup if license equals LICENSE continue else return deny unknown-license with null docs; notice must be a string via Map lookup else if missing or non-string return deny bad-notice with null docs; via Map lookup if notice equals NOTICE.md continue else return deny unknown-notice with null docs; on success return allow ok-docs with docs object literal holding license and notice. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce code-only gameplay source with browser-local saves, local serving with per-request lstat plus realpath containment on loopback 127.0.0.1 for root plus js and css only with 404 without bytes and 405 for non-GET/HEAD, procedural canvas fallback with browser-generated sound, syntax and serve checks with manual smoke not exhaustive, and exclusion of private history, excluded images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "license": "LICENSE",
+    "notice": "NOTICE.md"
+  },
+  "output": {
+    "decision": "allow",
+    "docs": {
+      "license": "LICENSE",
+      "notice": "NOTICE.md"
+    },
+    "reason": "ok-docs"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "license": "MIT",
+    "notice": "NOTICE.md"
+  },
+  "output": {
+    "decision": "deny",
+    "docs": null,
+    "reason": "unknown-license"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "license": "LICENSE",
+    "notice": "README.md"
+  },
+  "output": {
+    "decision": "deny",
+    "docs": null,
+    "reason": "unknown-notice"
+  }
+}
+```
+
+Public regression tests: `test/community_open_license_notice_gate.test.js`.
