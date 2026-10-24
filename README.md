@@ -2077,3 +2077,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_open_license_notice_gate.test.js`.
+
+
+<!-- community-core:denial-code-mapping-gate -->
+### Deterministic denial code mapping gate for open edition serving
+
+Mirrors the code-only open edition rule that symlink components, outside-root targets, dotfile segments, traversal and private paths yield 404 without bytes while bad methods yield 405 on loopback serving. It gives syntax checks, unit tests and docs a pure deterministic gate to keep only small bounded denial-plus-code descriptors and refuse oversize or out-of-scope variants without filesystem, network, bind or clock state, keeping denial-code pairing separate from route, save, phase, asset, containment, status, bind, port, offering, fixture and media-rights gates.
+
+Reusable deterministic JSON core: `js/community/denial_code_mapping_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of denial and code. Returns an object literal with decision allow or deny, reason code string, mapping object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null mapping; iterate Object.entries of payload and if any key is not denial or code return deny unknown-field with null mapping; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null mapping; collect entries into a Map; denial must be a string exactly symlink or outside-root or dotfile or traversal or private or bad-method via Map lookup else if missing or non-string return deny bad-denial with null mapping else return deny unknown-denial with null mapping; code must be a number exactly 404 or 405 via Map lookup else if missing or non-number return deny bad-code with null mapping else return deny unknown-code with null mapping; enforce allowed pairing where symlink and outside-root and dotfile and traversal and private require 404 and bad-method requires 405 else return deny mismatch-code with null mapping; on success return allow ok-mapping with mapping object literal holding denial and code. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce per-request lstat plus realpath containment with 404 without bytes, 405 for non-GET/HEAD, 404 for symlink traversal dotfile and private targets, bind 127.0.0.1, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of private history, excluded images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "code": 404,
+    "denial": "symlink"
+  },
+  "output": {
+    "decision": "allow",
+    "mapping": {
+      "code": 404,
+      "denial": "symlink"
+    },
+    "reason": "ok-mapping"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "code": 405,
+    "denial": "bad-method"
+  },
+  "output": {
+    "decision": "allow",
+    "mapping": {
+      "code": 405,
+      "denial": "bad-method"
+    },
+    "reason": "ok-mapping"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "code": 405,
+    "denial": "traversal"
+  },
+  "output": {
+    "decision": "deny",
+    "mapping": null,
+    "reason": "mismatch-code"
+  }
+}
+```
+
+Public regression tests: `test/community_denial_code_mapping_gate.test.js`.
