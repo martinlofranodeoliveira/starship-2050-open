@@ -1896,3 +1896,63 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_index_ref_gate.test.js`.
+
+
+<!-- community-core:paired-delivery-match-gate -->
+### Deterministic paired delivery match gate for open edition contributions
+
+Mirrors the code-only open edition browser game where complete gameplay source stays local with browser-local gameplay and score saves, loopback static serving on 127.0.0.1:8080 for root plus js and css only with per-request lstat plus realpath containment, and procedural canvas fallback with browser-generated sound while private history, images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment stay out. It gives syntax checks, unit tests and docs a pure deterministic gate to keep only paired gate-plus-test deliveries with matching cores and to refuse unpaired, mismatched or out-of-scope variants without filesystem, network, bind or clock state, keeping delivery pairing separate from route, save, phase, asset, containment, status, bind, port, offering, fixture and media-rights gates.
+
+Reusable deterministic JSON core: `js/community/paired_delivery_match_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of module and test. Returns an object literal with decision allow or deny, reason code string, pair object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null pair; iterate Object.entries of payload and if any key is not module or test return deny unknown-field with null pair; if any string value contains colon-slash-slash or backslash return deny bad-value with null pair; collect entries into a Map; module must be a string else if missing or non-string return deny bad-module with null pair; if module length exceeds 128 return deny oversized-module with null pair; split module by slash and iterate segments with for-of: if any segment is empty return deny unknown-module with null pair, if any segment equals dot or dotdot or includes dotdot return deny traversal with null pair, if any segment starts with dot return deny dotfile with null pair; if module does not start with js/community/ or does not end with _gate.mjs return deny unknown-module with null pair; derive module core between prefix and suffix and if core is empty or contains slash return deny unknown-module with null pair; iterate characters of module core with for-of allowing only A-Z a-z 0-9 hyphen underscore via Map lookup else deny bad-name with null pair; test must be a string else if missing or non-string return deny bad-test with null pair; if test length exceeds 128 return deny oversized-test with null pair; split test by slash and iterate segments with for-of: if any segment is empty return deny unknown-test with null pair, if any segment equals dot or dotdot or includes dotdot return deny traversal with null pair, if any segment starts with dot return deny dotfile with null pair; if test does not start with test/community_ or does not end with _gate.test.js return deny unknown-test with null pair; derive test core between prefix and suffix and if core is empty or contains slash return deny unknown-test with null pair; iterate characters of test core with for-of allowing only A-Z a-z 0-9 hyphen underscore via Map lookup else deny bad-name with null pair; if module core and test core are not exactly equal via Map lookup return deny mismatch-pair with null pair; on success return allow ok-pair with pair object literal holding module and test. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce code-only gameplay source with browser-local saves, local serving with per-request lstat plus realpath containment on 127.0.0.1:8080 for root plus js and css only, procedural canvas fallback with browser-generated sound, syntax and serve checks with manual smoke not exhaustive, and exclusion of private history, images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "module": "js/community/example_gate.mjs",
+    "test": "test/community_example_gate.test.js"
+  },
+  "output": {
+    "decision": "allow",
+    "pair": {
+      "module": "js/community/example_gate.mjs",
+      "test": "test/community_example_gate.test.js"
+    },
+    "reason": "ok-pair"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "module": "js/community/example_gate.mjs",
+    "test": "test/community_other_gate.test.js"
+  },
+  "output": {
+    "decision": "deny",
+    "pair": null,
+    "reason": "mismatch-pair"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "extra": "field",
+    "module": "js/community/example_gate.mjs",
+    "test": "test/community_example_gate.test.js"
+  },
+  "output": {
+    "decision": "deny",
+    "pair": null,
+    "reason": "unknown-field"
+  }
+}
+```
+
+Public regression tests: `test/community_paired_delivery_match_gate.test.js`.
