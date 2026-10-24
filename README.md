@@ -1956,3 +1956,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_paired_delivery_match_gate.test.js`.
+
+
+<!-- community-core:public-entry-file-gate -->
+### Deterministic public entry file gate for open edition serving
+
+Mirrors the code-only open edition rule that local static serving maps root to index.html plus js/game.js and css/style.css only on 127.0.0.1 with procedural canvas fallback and browser-local saves. It gives syntax checks, unit tests and docs a pure deterministic allowlist to accept only the three known public entry files with matching kinds and deny private, excluded-media, cloud or mismatched variants without filesystem, network, bind or clock state, keeping entry validation separate from route, save, phase and asset gates.
+
+Reusable deterministic JSON core: `js/community/public_entry_file_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of file and kind. Returns an object literal with decision allow or deny, reason code string, entry object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null entry; iterate Object.entries of payload and if any key is not file or kind return deny unknown-field with null entry; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null entry; collect entries into a Map; file must be a string via Map lookup else if missing or non-string return deny bad-file with null entry; via Map lookup if file equals index.html or js/game.js or css/style.css continue else return deny unknown-file with null entry; kind must be a string via Map lookup else if missing or non-string return deny bad-kind with null entry; via Map lookup if kind equals html or js or css continue else return deny unknown-kind with null entry; enforce allowed pairing where index.html requires html and js/game.js requires js and css/style.css requires css else return deny mismatch-kind with null entry; on success return allow ok-entry with entry object literal holding file and kind. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce code-only gameplay source with browser-local saves, local serving with per-request lstat plus realpath containment on loopback 127.0.0.1 for root plus js and css only with 404 without bytes and 405 for non-GET/HEAD, procedural canvas fallback with browser-generated sound, syntax and serve checks with manual smoke not exhaustive, and exclusion of private history, excluded images, 3D files, recorded voices, marketing material, cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "file": "index.html",
+    "kind": "html"
+  },
+  "output": {
+    "decision": "allow",
+    "entry": {
+      "file": "index.html",
+      "kind": "html"
+    },
+    "reason": "ok-entry"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "file": "css/style.css",
+    "kind": "css"
+  },
+  "output": {
+    "decision": "allow",
+    "entry": {
+      "file": "css/style.css",
+      "kind": "css"
+    },
+    "reason": "ok-entry"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "file": "js/game.js",
+    "kind": "css"
+  },
+  "output": {
+    "decision": "deny",
+    "entry": null,
+    "reason": "mismatch-kind"
+  }
+}
+```
+
+Public regression tests: `test/community_public_entry_file_gate.test.js`.
