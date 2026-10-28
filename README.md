@@ -2139,3 +2139,91 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_denial_code_mapping_gate.test.js`.
+
+
+<!-- community-core:local-check-order-gate -->
+### Deterministic local check order gate for open edition verification
+
+Mirrors the code-only open edition workflow where npm check validates syntax then npm test validates local serving with denied private paths and unsupported writes then npm start serves loopback for manual procedural smoke. It gives syntax checks, unit tests and docs a pure deterministic order check to accept small bounded step lists in workflow order and deny out-of-order, gapped, duplicated or oversized variants without filesystem, network, bind or clock state, keeping sequence validation separate from single-descriptor route, save, phase and asset gates.
+
+Reusable deterministic JSON core: `js/community/local_check_order_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of steps. Returns an object literal with decision allow or deny, reason code string, order object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null order; iterate Object.entries of payload and if any key is not steps return deny unknown-field with null order; collect entries into a Map; steps must be an array with length 1 to 3 else if missing or non-array or empty or longer than 3 return deny bad-steps with null order; iterate steps with for-of: each element must be a string else return deny bad-steps with null order; if any element contains colon-slash-slash or backslash or dotdot return deny bad-value with null order; each element must be exactly check or test or start via Map lookup else return deny unknown-step with null order; track seen with a Map and if any value repeats return deny duplicate-step with null order; track rank with a Map check 0 test 1 start 2: first element must be check else return deny out-of-order with null order; iterate remaining elements with for-of requiring rank equals previous rank plus one else if rank is less than or equal to previous rank return deny out-of-order with null order else return deny gap-step with null order; on success build a fresh steps array with push and return allow ok-order with order object literal holding steps. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce JavaScript syntax validation, local HTTP serving on 127.0.0.1 with per-request lstat plus realpath containment and 404 without bytes and 405 for non-GET/HEAD, procedural canvas fallback with browser-generated sound, browser-local saves, manual browser open and start smoke without exhaustive coverage, and exclusion of cloud leaderboard, SDK download, production deployment and excluded images, 3D files, recorded voices and marketing material; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "steps": [
+      "check",
+      "test",
+      "start"
+    ]
+  },
+  "output": {
+    "decision": "allow",
+    "order": {
+      "steps": [
+        "check",
+        "test",
+        "start"
+      ]
+    },
+    "reason": "ok-order"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "steps": [
+      "check"
+    ]
+  },
+  "output": {
+    "decision": "allow",
+    "order": {
+      "steps": [
+        "check"
+      ]
+    },
+    "reason": "ok-order"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "steps": [
+      "test",
+      "start"
+    ]
+  },
+  "output": {
+    "decision": "deny",
+    "order": null,
+    "reason": "out-of-order"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "steps": [
+      "check",
+      "start"
+    ]
+  },
+  "output": {
+    "decision": "deny",
+    "order": null,
+    "reason": "gap-step"
+  }
+}
+```
+
+Public regression tests: `test/community_local_check_order_gate.test.js`.
