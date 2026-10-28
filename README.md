@@ -2227,3 +2227,73 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_local_check_order_gate.test.js`.
+
+
+<!-- community-core:open-file-scope-gate -->
+### Deterministic open file scope gate for code-only deliveries
+
+Mirrors the code-only open edition boundary where complete gameplay source with procedural canvas fallback and browser-generated sound plus browser-local gameplay and score saves stays open with local 127.0.0.1 js and css serving and syntax plus smoke checks while private history, cloud leaderboard, SDK download, production deployment and excluded images, 3D files, recorded voices and marketing material stay out. It gives syntax checks, unit tests and docs a pure deterministic scope check to accept small bounded repo-relative file lists within tracked public paths and deny private, excluded, dotfile, traversal, absolute or oversized variants without filesystem, network, bind or clock state, keeping file-scope validation separate from route, save, phase and asset gates.
+
+Reusable deterministic JSON core: `js/community/open_file_scope_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of files. Returns an object literal with decision allow or deny, reason code string, scope object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null scope; iterate Object.entries of payload and if any key is not files return deny unknown-field with null scope; collect entries into a Map; files must be an array with length 1 to 8 else if missing or non-array or empty or longer than 8 return deny bad-files with null scope; iterate files with for-of: each element must be a string with length 1 to 128 else return deny bad-files with null scope; if any element contains colon-slash-slash or backslash or dotdot return deny bad-value with null scope; if any element starts with slash or contains double-slash or ends with slash return deny bad-files with null scope; split each file by slash and iterate segments with for-of: if any segment is empty or equals dot or dotdot or includes dotdot return deny bad-value with null scope, if any segment starts with dot return deny unknown-file with null scope; validate allowlist with for-of and Map lookup: root files with no slash must be exactly LICENSE or NOTICE.md or README.md or index.html or package.json or server.js via Map lookup else deny unknown-file; css/style.css and js/game.js must match exactly via Map lookup else deny unknown-file; js/community paths must start with js/community/ with exactly one filename segment else deny unknown-file; test paths must start with test/ with exactly one filename segment else deny unknown-file; filename must be non-empty and iterate characters with for-of allowing only A-Z a-z 0-9 dot hyphen underscore via Map lookup else deny bad-name with null scope; js/community filename must end with _gate.mjs with non-empty basename else deny bad-name; test filename must end with .test.js with non-empty basename else deny bad-name; on success build a fresh files array with push and return allow ok-scope with scope object literal holding files. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce code-only open scope with procedural canvas fallback and browser-generated sound, browser-local gameplay and score saves, local loopback serving on 127.0.0.1 with per-request lstat plus realpath containment and 404 without bytes and 405 for non-GET/HEAD, syntax plus smoke checks without exhaustive coverage, and exclusion of private history, cloud leaderboard, SDK download, production deployment and excluded images, 3D files, recorded voices and marketing material; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "files": [
+      "index.html"
+    ]
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-scope",
+    "scope": {
+      "files": [
+        "index.html"
+      ]
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "files": [
+      "js/community/static_route_gate.mjs",
+      "test/community_static_route_gate.test.js"
+    ]
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-scope",
+    "scope": {
+      "files": [
+        "js/community/static_route_gate.mjs",
+        "test/community_static_route_gate.test.js"
+      ]
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "files": [
+      "index.html",
+      "private/history.md"
+    ]
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-file",
+    "scope": null
+  }
+}
+```
+
+Public regression tests: `test/community_open_file_scope_gate.test.js`.
