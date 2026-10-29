@@ -2368,3 +2368,66 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_procedural_bundle_complete_gate.test.js`.
+
+
+<!-- community-core:lstat-realpath-check-gate -->
+### Deterministic lstat realpath check gate for per-request containment
+
+Mirrors the open edition limits rule that the static check is per-request lstat plus realpath containment, not a sandbox or TOCTOU-proof guard. It gives syntax checks, unit tests and docs a pure deterministic method check to accept small bounded stat-plus-resolve-plus-mode descriptors naming only lstat with realpath in per-request mode and deny stat, follow, sandbox or batched variants without filesystem, network, bind or clock state, keeping check-method selection separate from route, save, phase, asset, containment-limit and symlink-policy gates.
+
+Reusable deterministic JSON core: `js/community/lstat_realpath_check_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of stat, resolve and mode. Returns an object literal with decision allow or deny, reason code string, check object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null check; iterate Object.entries of payload and if any key is not stat or resolve or mode return deny unknown-field with null check; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null check; collect entries into a Map; stat must be a string exactly lstat via Map lookup else if missing or non-string return deny bad-stat with null check else return deny unknown-stat with null check; resolve must be a string exactly realpath via Map lookup else if missing or non-string return deny bad-resolve with null check else return deny unknown-resolve with null check; mode must be a string exactly per-request via Map lookup else if missing or non-string return deny bad-mode with null check else return deny unknown-mode with null check; on success return allow ok-check-method with check object literal holding stat, resolve and mode. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce per-request lstat plus realpath containment with 404 without bytes and 405 for non-GET/HEAD, bind 127.0.0.1, procedural canvas fallback with browser-generated sound, browser-local saves, syntax plus smoke checks without exhaustive coverage, and exclusion of cloud leaderboard, SDK download, production deployment and excluded images, 3D files, recorded voices and marketing material; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "mode": "per-request",
+    "resolve": "realpath",
+    "stat": "lstat"
+  },
+  "output": {
+    "check": {
+      "mode": "per-request",
+      "resolve": "realpath",
+      "stat": "lstat"
+    },
+    "decision": "allow",
+    "reason": "ok-check-method"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "mode": "per-request",
+    "resolve": "realpath",
+    "stat": "stat"
+  },
+  "output": {
+    "check": null,
+    "decision": "deny",
+    "reason": "unknown-stat"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "mode": "batched",
+    "resolve": "realpath",
+    "stat": "lstat"
+  },
+  "output": {
+    "check": null,
+    "decision": "deny",
+    "reason": "unknown-mode"
+  }
+}
+```
+
+Public regression tests: `test/community_lstat_realpath_check_gate.test.js`.
