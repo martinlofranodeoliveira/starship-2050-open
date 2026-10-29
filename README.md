@@ -2297,3 +2297,74 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_open_file_scope_gate.test.js`.
+
+
+<!-- community-core:procedural-bundle-complete-gate -->
+### Deterministic procedural bundle completeness gate for open rendering
+
+Mirrors the open edition rule that rendering uses the procedural canvas fallback and browser-generated sound while original images, 3D files, recorded voices and marketing material are excluded. It gives syntax checks, unit tests and docs a pure deterministic bundle check to accept only the complete two-item canvas-plus-sound bundle and deny single, duplicated, unknown or oversized variants without filesystem, network, bind or clock state, keeping bundle completeness separate from single-asset route, save, phase and file-scope gates.
+
+Reusable deterministic JSON core: `js/community/procedural_bundle_complete_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access and never uses Date. Payload must be a non-null non-array object with keys subset of bundle. Returns an object literal with decision allow or deny, reason code string, complete object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null complete; iterate Object.entries of payload and if any key is not bundle return deny unknown-field with null complete; collect entries into a Map; bundle must be an array with length 1 to 2 else if missing or non-array or empty or longer than 2 return deny bad-bundle with null complete; iterate bundle with for-of: each element must be a string else return deny bad-bundle with null complete; if any element contains colon-slash-slash or backslash or dotdot return deny bad-value with null complete; each element must be exactly canvas-procedural or sound-generated via Map lookup else return deny unknown-render with null complete; track seen with a Map and if any value repeats return deny duplicate-render with null complete; require both canvas-procedural and sound-generated present via Map lookup else return deny incomplete-bundle with null complete; on success build a fresh bundle array with push preserving input order and return allow ok-complete with complete object literal holding bundle. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; callers must still enforce procedural canvas fallback and browser-generated sound, browser-local gameplay and score saves, local loopback serving on 127.0.0.1 with per-request lstat plus realpath containment and 404 without bytes and 405 for non-GET/HEAD, syntax plus smoke checks without exhaustive coverage, and exclusion of private history, cloud leaderboard, SDK download, production deployment and excluded images, 3D files, recorded voices and marketing material; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "bundle": [
+      "canvas-procedural",
+      "sound-generated"
+    ]
+  },
+  "output": {
+    "complete": {
+      "bundle": [
+        "canvas-procedural",
+        "sound-generated"
+      ]
+    },
+    "decision": "allow",
+    "reason": "ok-complete"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "bundle": [
+      "sound-generated",
+      "canvas-procedural"
+    ]
+  },
+  "output": {
+    "complete": {
+      "bundle": [
+        "sound-generated",
+        "canvas-procedural"
+      ]
+    },
+    "decision": "allow",
+    "reason": "ok-complete"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "bundle": [
+      "canvas-procedural"
+    ]
+  },
+  "output": {
+    "complete": null,
+    "decision": "deny",
+    "reason": "incomplete-bundle"
+  }
+}
+```
+
+Public regression tests: `test/community_procedural_bundle_complete_gate.test.js`.
