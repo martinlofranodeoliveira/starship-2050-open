@@ -2485,3 +2485,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_lstat_realpath_check_gate.test.js`.
+
+
+<!-- community-core:separate-env-demo-data-gate -->
+### Deterministic separate-env synthetic demo data gate for open edition
+
+Mirrors the open edition rule that development uses a separate environment, never sends env-file, keys, databases, uploads or personal data to shared history, and demos use only fictitious data. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded environment-plus-material descriptors and deny real or out-of-scope variants without filesystem, network, bind or clock state, keeping dev-hygiene validation separate from route, save, phase, asset, credential and fixture gates. Synthetic descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/separate_env_demo_data_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of environment and material. Returns an object literal with decision allow or deny, reason code string, hygiene object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null hygiene; iterate Object.entries of payload and if any key is not environment or material return deny unknown-field with null hygiene; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null hygiene; collect entries into a Map; environment must be a string exactly separate via Map lookup else if missing or non-string return deny bad-environment with null hygiene else return deny unknown-environment with null hygiene; material must be a string via Map lookup else if missing or non-string return deny bad-material with null hygiene; if material is fictitious return allow ok-demo with hygiene object literal holding environment and material; if material is env-file or keys or database or upload or personal return deny excluded-material with null hygiene; else return deny unknown-material with null hygiene; on success preserve input. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; synthetic descriptor check only with no operational action; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "environment": "separate",
+    "material": "fictitious"
+  },
+  "output": {
+    "decision": "allow",
+    "hygiene": {
+      "environment": "separate",
+      "material": "fictitious"
+    },
+    "reason": "ok-demo"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "environment": "separate",
+    "material": "personal"
+  },
+  "output": {
+    "decision": "deny",
+    "hygiene": null,
+    "reason": "excluded-material"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "environment": "shared",
+    "material": "fictitious"
+  },
+  "output": {
+    "decision": "deny",
+    "hygiene": null,
+    "reason": "unknown-environment"
+  }
+}
+```
+
+Public regression tests: `test/community_separate_env_demo_data_gate.test.js`.
