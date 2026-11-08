@@ -2544,3 +2544,71 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_separate_env_demo_data_gate.test.js`.
+
+
+<!-- community-core:code-evidence-bundle-gate -->
+### Deterministic code evidence bundle gate for open edition
+
+Mirrors the open edition Contribuir rule that code changes include relevant tests, reproduction instructions and documentation update with no secrets and synthetic-only examples. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded kind-plus-tests-plus-repro-plus-docs descriptors and deny incomplete or out-of-scope variants without filesystem, network, bind or clock state, keeping code-bundle validation separate from issue, route, save, phase, asset, fixture, credential and denial gates. Synthetic bounded descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/code_evidence_bundle_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of kind, tests, repro and docs. Returns an object literal with decision allow or deny, reason code string, evidence object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null evidence; iterate Object.entries of payload and if any key is not kind or tests or repro or docs return deny unknown-field with null evidence; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null evidence; collect entries into a Map; kind must be a string exactly code via Map lookup else if missing or non-string return deny bad-kind with null evidence else return deny unknown-kind with null evidence; tests must be a string exactly relevant via Map lookup else if missing or non-string return deny bad-tests with null evidence else return deny unknown-tests with null evidence; repro must be a string exactly steps via Map lookup else if missing or non-string return deny bad-repro with null evidence else return deny unknown-repro with null evidence; docs must be a string exactly updated via Map lookup else if missing or non-string return deny bad-docs with null evidence else return deny unknown-docs with null evidence; on success return allow ok-code-bundle with evidence object literal holding kind, tests, repro and docs. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; synthetic descriptor check only with no operational action and no benchmark invention; callers must still enforce separate development environment, no secrets or personal data in issues, fictional demo data only, JavaScript syntax validation, local HTTP serving on 127.0.0.1 with per-request lstat plus realpath containment, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "docs": "updated",
+    "kind": "code",
+    "repro": "steps",
+    "tests": "relevant"
+  },
+  "output": {
+    "decision": "allow",
+    "evidence": {
+      "docs": "updated",
+      "kind": "code",
+      "repro": "steps",
+      "tests": "relevant"
+    },
+    "reason": "ok-code-bundle"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "docs": "updated",
+    "kind": "code",
+    "repro": "steps",
+    "tests": "none"
+  },
+  "output": {
+    "decision": "deny",
+    "evidence": null,
+    "reason": "unknown-tests"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "docs": "updated",
+    "extra": "x",
+    "kind": "code",
+    "repro": "steps",
+    "tests": "relevant"
+  },
+  "output": {
+    "decision": "deny",
+    "evidence": null,
+    "reason": "unknown-field"
+  }
+}
+```
+
+Public regression tests: `test/community_code_evidence_bundle_gate.test.js`.
