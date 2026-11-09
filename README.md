@@ -2612,3 +2612,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_code_evidence_bundle_gate.test.js`.
+
+
+<!-- community-core:doc-review-boundary-gate -->
+### Deterministic documented review boundary gate for open edition
+
+Mirrors the open edition documentary-review rule that commands were verified in manifests and public guide and does not mean all integrations, platforms or real services were exercised. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded area-plus-status descriptors and deny overclaims without filesystem, network, bind or clock state, keeping review-boundary validation separate from route, save, phase, asset, fixture, credential and denial gates. Synthetic bounded descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/doc_review_boundary_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of area and status. Returns an object literal with decision allow or deny, reason code string, review object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null review; iterate Object.entries of payload and if any key is not area or status return deny unknown-field with null review; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null review; collect entries into a Map; area must be a string exactly manifests or guide or integrations or platforms or real-services via Map lookup else if missing or non-string return deny bad-area with null review else return deny unknown-area with null review; status must be a string exactly checked or not-exercised via Map lookup else if missing or non-string return deny bad-status with null review else return deny unknown-status with null review; enforce allowed pairing where manifests and guide require checked and integrations and platforms and real-services require not-exercised else return deny mismatch-status with null review; on success return allow ok-review-boundary with review object literal holding area and status. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; synthetic descriptor check only with no operational action and no benchmark invention; callers must still enforce manifest and guide verification only with no claim of exercised integrations, platforms or real services in documentary review, JavaScript syntax validation, local HTTP serving on 127.0.0.1 with per-request lstat plus realpath containment, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "area": "manifests",
+    "status": "checked"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-review-boundary",
+    "review": {
+      "area": "manifests",
+      "status": "checked"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "area": "integrations",
+    "status": "not-exercised"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-review-boundary",
+    "review": {
+      "area": "integrations",
+      "status": "not-exercised"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "area": "integrations",
+    "status": "checked"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "mismatch-status",
+    "review": null
+  }
+}
+```
+
+Public regression tests: `test/community_doc_review_boundary_gate.test.js`.
