@@ -2919,3 +2919,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_contribution_value_preference_gate.test.js`.
+
+
+<!-- community-core:git-push-hygiene-gate -->
+### Deterministic Git push hygiene gate for open edition
+
+Mirrors the open edition rule to keep a separate dev env and never push .env, keys, databases, uploads or personal data to Git while demos use only fictional data. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded item-plus-harbor descriptors for Git and deny private variants without filesystem, network, bind or clock state, keeping Git-hygiene validation separate from route, save, phase, asset, credential and disclosure gates. Synthetic descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/git_push_hygiene_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of item and harbor. Returns an object literal with decision allow or deny, reason code string, posting object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null posting; iterate Object.entries of payload and if any key is not item or harbor return deny unknown-field with null posting; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null posting; collect entries into a Map; harbor must be a string exactly git via Map lookup else if missing or non-string return deny bad-harbor with null posting else return deny unknown-harbor with null posting; item must be a string else if missing or non-string return deny bad-item with null posting; if item equals code or docs or synthetic via allowed Map lookup proceed to allow; if item equals env-file or secret-key or database or upload or personal-data via denied Map lookup return deny denied-item with null posting; else return deny unknown-item with null posting; on success return allow ok-push with posting object literal holding item and harbor. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; synthetic descriptor check only with no operational action; callers must still keep a separate dev env, never push .env keys databases uploads or personal data to Git, use only fictional synthetic data in demos, require no secrets in issues examples captures or pulls, and preserve local serving on 127.0.0.1 with procedural canvas fallback and browser-local saves while excluding cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "harbor": "git",
+    "item": "code"
+  },
+  "output": {
+    "decision": "allow",
+    "posting": {
+      "harbor": "git",
+      "item": "code"
+    },
+    "reason": "ok-push"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "harbor": "git",
+    "item": "env-file"
+  },
+  "output": {
+    "decision": "deny",
+    "posting": null,
+    "reason": "denied-item"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "harbor": "cloud",
+    "item": "code"
+  },
+  "output": {
+    "decision": "deny",
+    "posting": null,
+    "reason": "unknown-harbor"
+  }
+}
+```
+
+Public regression tests: `test/community_git_push_hygiene_gate.test.js`.
