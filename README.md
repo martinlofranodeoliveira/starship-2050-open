@@ -2674,3 +2674,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_doc_review_boundary_gate.test.js`.
+
+
+<!-- community-core:preserved-reference-section-gate -->
+### Deterministic preserved reference section gate for open edition
+
+Mirrors the open edition rule that the original technical reference below preserves APIs, examples, limits and feature history. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded reference-plus-section descriptors and deny out-of-scope variants without filesystem, network, bind or clock state, keeping reference validation separate from route, save, phase, asset, credential and fixture checks. Synthetic descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/preserved_reference_section_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of reference and section. Returns an object literal with decision allow or deny, reason code string, reference object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null reference; iterate Object.entries of payload and if any key is not reference or section return deny unknown-field with null reference; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null reference; collect entries into a Map; reference must be a string exactly original via Map lookup else if missing or non-string return deny bad-reference with null reference else return deny unknown-reference with null reference; section must be a string exactly apis or examples or limits or history via Map lookup else if missing or non-string return deny bad-section with null reference else return deny unknown-section with null reference; on success return allow ok-preserved with reference object literal holding reference and section. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; synthetic descriptor check only with no operational action; callers must still preserve APIs, examples, limits and history in the original reference and consult test plus module when evaluating functionality; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "reference": "original",
+    "section": "apis"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-preserved",
+    "reference": {
+      "reference": "original",
+      "section": "apis"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "reference": "original",
+    "section": "limits"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-preserved",
+    "reference": {
+      "reference": "original",
+      "section": "limits"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "reference": "original",
+    "section": "cloud"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-section",
+    "reference": null
+  }
+}
+```
+
+Public regression tests: `test/community_preserved_reference_section_gate.test.js`.
