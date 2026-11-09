@@ -2978,3 +2978,63 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_git_push_hygiene_gate.test.js`.
+
+
+<!-- community-core:auxiliary-independence-gate -->
+### Deterministic auxiliary independence gate for open edition
+
+Mirrors the open edition rule that helpers in community/ are independent modules whose existence does not prove integration in the interface or main flow. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded auxiliary-plus-coupling descriptors and deny integration-claiming variants without filesystem, network, bind or clock state, keeping independence validation separate from route, save, phase, asset, fixture and hygiene gates. Synthetic bounded descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/auxiliary_independence_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of auxiliary and coupling. Returns an object literal with decision allow or deny, reason code string, standing object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null standing; iterate Object.entries of payload and if any key is not auxiliary or coupling return deny unknown-field with null standing; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null standing; collect entries into a Map; auxiliary must be a string exactly community via Map lookup else if missing or non-string return deny bad-auxiliary with null standing else return deny unknown-auxiliary with null standing; coupling must be a string exactly standalone via Map lookup else if missing or non-string return deny bad-coupling with null standing else return deny unknown-coupling with null standing; on success return allow ok-independent with standing object literal holding auxiliary and coupling. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; synthetic descriptor check only with no operational action; callers must still enforce community helpers as independent modules with no implied interface or main-flow integration, consult test plus module code when evaluating a feature, keep procedural canvas fallback with browser-local saves and local 127.0.0.1 serving, and exclude cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "auxiliary": "community",
+    "coupling": "standalone"
+  },
+  "output": {
+    "decision": "allow",
+    "reason": "ok-independent",
+    "standing": {
+      "auxiliary": "community",
+      "coupling": "standalone"
+    }
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "auxiliary": "community",
+    "coupling": "integrated"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-coupling",
+    "standing": null
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "auxiliary": "community",
+    "coupling": "standalone",
+    "extra": "x"
+  },
+  "output": {
+    "decision": "deny",
+    "reason": "unknown-field",
+    "standing": null
+  }
+}
+```
+
+Public regression tests: `test/community_auxiliary_independence_gate.test.js`.
