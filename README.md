@@ -2795,3 +2795,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_public_docs_block_gate.test.js`.
+
+
+<!-- community-core:disclosure-channel-permit-gate -->
+### Deterministic disclosure channel permit gate for open edition
+
+Mirrors the open edition contribute rule that issues, examples, captures and pulls carry only synthetic technical content with no secrets or third-party info. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded channel-plus-content descriptors and deny secret, third-party or out-of-scope variants without filesystem, network, bind or clock state, keeping disclosure validation separate from route, save, phase, asset, credential and fixture gates. Synthetic descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/disclosure_channel_permit_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of channel and content. Returns an object literal with decision allow or deny, reason code string, permit object or null. Steps using for-of plus Object.entries and Map get and set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null permit; iterate Object.entries of payload and if any key is not channel or content return deny unknown-field with null permit; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null permit; collect entries into a Map; channel must be a string exactly issue or example or capture or pull via Map lookup else if missing or non-string return deny bad-channel with null permit else return deny unknown-channel with null permit; content must be a string else if missing or non-string return deny bad-content with null permit; if content equals synthetic or technical via allowed Map lookup return allow ok-disclosure with permit object literal holding channel and content; if content equals secret via denied Map lookup return deny denied-secret with null permit; if content equals third-party via denied Map lookup return deny denied-third-party with null permit; else return deny unknown-content with null permit. It preserves input, uses only object literals, arrays with push, and Maps, never reads storage, network, or clock; synthetic descriptor check only with no operational action; callers must still enforce no secrets or third-party info in issues, examples, captures or pulls, separate dev env with no env keys banks uploads or personal data to Git and synthetic fictional demo data only, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "channel": "issue",
+    "content": "synthetic"
+  },
+  "output": {
+    "decision": "allow",
+    "permit": {
+      "channel": "issue",
+      "content": "synthetic"
+    },
+    "reason": "ok-disclosure"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "channel": "pull",
+    "content": "technical"
+  },
+  "output": {
+    "decision": "allow",
+    "permit": {
+      "channel": "pull",
+      "content": "technical"
+    },
+    "reason": "ok-disclosure"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "channel": "capture",
+    "content": "secret"
+  },
+  "output": {
+    "decision": "deny",
+    "permit": null,
+    "reason": "denied-secret"
+  }
+}
+```
+
+Public regression tests: `test/community_disclosure_channel_permit_gate.test.js`.
