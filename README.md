@@ -2736,3 +2736,62 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_preserved_reference_section_gate.test.js`.
+
+
+<!-- community-core:public-docs-block-gate -->
+### Deterministic public docs block gate for open edition
+
+Mirrors the open edition rule that the Portuguese discovery docs are wrapped in a versioned public-docs-pt:v1 block. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded block-plus-version descriptors and deny out-of-scope variants without filesystem, network, bind or clock state, keeping docs-block validation separate from route, save, phase, asset, fixture, credential and denial gates. Synthetic bounded descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/public_docs_block_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of block and version. Returns an object literal with decision allow or deny, reason code string, docs object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null docs; iterate Object.entries of payload and if any key is not block or version return deny unknown-field with null docs; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null docs; collect entries into a Map; block must be a string exactly public-docs-pt via Map lookup else if missing or non-string return deny bad-block with null docs else return deny unknown-block with null docs; version must be a string exactly v1 via Map lookup else if missing or non-string return deny bad-version with null docs else return deny unknown-version with null docs; on success return allow ok-docs with docs object literal holding block and version. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; synthetic descriptor check only with no operational action; callers must still enforce Portuguese docs block versioning, JavaScript syntax validation, local HTTP serving on 127.0.0.1 with per-request lstat plus realpath containment, procedural canvas fallback with browser-generated sound, browser-local saves, and exclusion of cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "block": "public-docs-pt",
+    "version": "v1"
+  },
+  "output": {
+    "decision": "allow",
+    "docs": {
+      "block": "public-docs-pt",
+      "version": "v1"
+    },
+    "reason": "ok-docs"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "block": "public-docs-pt",
+    "version": "v2"
+  },
+  "output": {
+    "decision": "deny",
+    "docs": null,
+    "reason": "unknown-version"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "block": "other",
+    "version": "v1"
+  },
+  "output": {
+    "decision": "deny",
+    "docs": null,
+    "reason": "unknown-block"
+  }
+}
+```
+
+Public regression tests: `test/community_public_docs_block_gate.test.js`.
