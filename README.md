@@ -2857,3 +2857,65 @@ Examples (JSON input and expected output):
 ```
 
 Public regression tests: `test/community_disclosure_channel_permit_gate.test.js`.
+
+
+<!-- community-core:contribution-value-preference-gate -->
+### Deterministic contribution value preference gate for open edition
+
+Mirrors the open edition contribute rule that useful and complete changes are preferred over activity-only changes. It gives syntax checks, unit tests and docs a pure deterministic gate to accept small bounded change-plus-motive descriptors and deny activity-only or out-of-scope variants without filesystem, network, bind or clock state, keeping contribution-value validation separate from route, save, phase, asset, credential and fixture checks. Synthetic descriptors only with no operational action; independently tested with application integration outside this change.
+
+Reusable deterministic JSON core: `js/community/contribution_value_preference_gate.mjs`, API `runFeature(payload)`. This module is independently tested; application/UI integration is outside this change.
+
+Pure ES module exporting function runFeature(payload) with no imports, classes, async, this, reflection or mutable module variables and never uses Date. Exposes runFeature(payload) as a deterministic pure JSON function with no I/O, env, clock, randomness, callbacks, dependencies or filesystem access. Payload must be a non-null non-array object with keys subset of change and motive. Returns an object literal with decision allow or deny, reason code string, preference object or null. Steps using for-of plus Object.entries and Map get/set without mutation and without variable-index access: if payload is not a non-null object or is an array return deny bad-payload with null preference; iterate Object.entries of payload and if any key is not change or motive return deny unknown-field with null preference; if any string value contains colon-slash-slash or backslash or dotdot return deny bad-value with null preference; collect entries into a Map; change must be a string exactly useful or complete via Map lookup else if missing or non-string return deny bad-change with null preference else return deny unknown-change with null preference; motive must be a string else if missing or non-string return deny bad-motive with null preference; if motive equals contribution via allowed Map lookup proceed to allow; if motive equals activity via denied Map lookup return deny denied-activity with null preference; else return deny unknown-motive with null preference; on success return allow ok-preferred with preference object literal holding change and motive. It preserves input, uses only object literals, arrays with push, and Maps, never reads regular-file state, bind address, storage, network, or clock; synthetic descriptor check only with no operational action; callers must still prefer useful and complete changes over activity-only changes, require objective plus observed behavior plus version plus synthetic minimal example with relevant tests plus repro instructions plus docs update, enforce no secrets or third-party info with separate dev env and synthetic fictional demo data only, and preserve local serving on 127.0.0.1 with procedural canvas fallback and browser-local saves while excluding cloud leaderboard, SDK download and production deployment; application and UI integration is outside this change.
+
+Examples (JSON input and expected output):
+
+```json
+{
+  "input": {
+    "change": "useful",
+    "motive": "contribution"
+  },
+  "output": {
+    "decision": "allow",
+    "preference": {
+      "change": "useful",
+      "motive": "contribution"
+    },
+    "reason": "ok-preferred"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "change": "complete",
+    "motive": "contribution"
+  },
+  "output": {
+    "decision": "allow",
+    "preference": {
+      "change": "complete",
+      "motive": "contribution"
+    },
+    "reason": "ok-preferred"
+  }
+}
+```
+
+```json
+{
+  "input": {
+    "change": "useful",
+    "motive": "activity"
+  },
+  "output": {
+    "decision": "deny",
+    "preference": null,
+    "reason": "denied-activity"
+  }
+}
+```
+
+Public regression tests: `test/community_contribution_value_preference_gate.test.js`.
